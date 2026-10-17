@@ -105,10 +105,11 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         assert app.checkbox(key="online_map").value
         deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
         layers = {layer["id"]: layer for layer in deck["layers"]}
-        assert len(layers["harbor-terminals"]["data"]) == 4
+        assert len(layers["harbor-terminals"]["data"]) == 11
+        assert len(layers["waterway-labels"]["data"]) == 8
         assert len(layers["context-vessels"]["data"]) == 22
         assert not layers["engine-tracks"]["data"]
-        assert len(app.image) == 1
+        assert len(app.image) == 2
         app.checkbox(key="online_map").uncheck().run()
         assert not app.exception
         assert len(app.image) == 2
@@ -129,6 +130,26 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
         layers = {layer["id"]: layer for layer in deck["layers"]}
         assert len(layers["engine-tracks"]["data"]) == 2
+        assert len(layers["engine-routes"]["data"]) == 2
+        from harbor_simulation.views import project
+
+        # The display must use the session's routes, with the same local-to-map
+        # transform as its tracks, rather than independently invented lines.
+        assert [line["path"] for line in layers["engine-routes"]["data"]] == [
+            [project(*point) for point in vertices] for vertices in api.snapshot(sid)["routes"].values()
+        ]
+        app.selectbox(key="map_focus").select("Exercise area").run()
+        deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
+        assert deck["initialViewState"]["zoom"] == 15
+        app.checkbox(key="map_context").uncheck().run()
+        deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
+        layers = {layer["id"]: layer for layer in deck["layers"]}
+        assert layers["context-vessels"]["visible"] is False
+        assert len(layers["engine-tracks"]["data"]) == 2
+        app.selectbox(key="map_focus").select("Pier T").run()
+        deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
+        assert deck["initialViewState"]["zoom"] == 14.5
+        app.selectbox(key="map_focus").select("Exercise area").run()
         app.button(key="step").click().run()
         demo = controllers[0]
         assert demo.view()["elapsed"] == 1
@@ -186,9 +207,10 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         assert not app.metric
         deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
         layers = {layer["id"]: layer for layer in deck["layers"]}
-        assert len(layers["harbor-terminals"]["data"]) == 4
+        assert len(layers["harbor-terminals"]["data"]) == 11
         assert not layers["engine-tracks"]["data"]
-        assert "unknown_01" not in base64.b64decode(app.image[0].value[0].split(",", 1)[1]).decode()
+        for element in app.image:
+            assert "unknown_01" not in base64.b64decode(element.value[0].split(",", 1)[1]).decode()
     finally:
         for demo in controllers:
             demo.close()

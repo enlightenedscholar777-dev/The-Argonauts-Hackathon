@@ -105,7 +105,7 @@ The `(sid,source_id,source_boot_id,source_sequence)` tuple is also unique; reuse
 
 ## Snapshot and assessment
 
-Poll `/snapshot` at 1 Hz. Top-level fields: `session`, `synthetic_data`, `policy_assumptions`, `health`, `ai`, `sources`, `zones`, `bounds`, `tracks` (Assessment array), `open_incidents`, `simulated_faults`.
+Poll `/snapshot` at 1 Hz. Top-level fields: `session`, `synthetic_data`, `policy_assumptions`, `health`, `ai`, `sources`, `zones`, `routes`, `bounds`, `tracks` (Assessment array), `open_incidents`, `simulated_faults`. `routes` is an additive field mapping route IDs to local-metre vertex arrays from the session's pinned policy; the dashboard uses it for mission reference lines.
 
 | Assessment group | Stable fields / meaning |
 |---|---|

@@ -74,9 +74,16 @@ with st.sidebar:
     st.divider()
     st.subheader("Map")
     online_map = st.checkbox("Show online Long Beach basemap", value=True, key="online_map")
-    focus = st.selectbox("Map view", ["Whole harbor", "Exercise area"], key="map_focus")
+    focus = st.selectbox(
+        "Focus area", ["Whole harbor", "Exercise area"] + [t["label"] for t in TERMINALS], key="map_focus"
+    )
+    with st.expander("Map layers", expanded=False):
+        show_labels = st.checkbox("Area and waterway labels", value=True, key="map_labels")
+        show_context = st.checkbox("Fictional vessel context", value=True, key="map_context")
+        show_forecasts = st.checkbox("Conditional forecasts", value=True, key="map_forecasts")
+        show_uncertainty = st.checkbox("Position uncertainty rings", value=True, key="map_uncertainty")
     st.caption(
-        "Turn off the online basemap for the offline harbor layout. Live exercise detail always works offline."
+        "The Harbor atlas and Exercise detail work offline. The Geographic map adds pan, zoom and hover details."
     )
     st.info(
         "The engine runs on your CPU. Groq is optional; provider failures never replace the deterministic assessment."
@@ -85,36 +92,61 @@ with st.sidebar:
 
 def render_maps(snapshot=None, context=None):
     """Keep harbor context visible before startup and during engine outages."""
-    harbor, detail = st.columns([2.2, 1.15])
+    harbor, geography, detail = st.tabs(["Harbor atlas", "Geographic map", "Exercise detail"])
     with harbor:
-        st.subheader("Long Beach Harbor | Harbor overview")
+        st.subheader("Long Beach Harbor | Area atlas")
+        # Streamlit's image path retains SVG; st.html strips it with its sanitizer.
+        st.image(
+            harbor_layout(
+                snapshot,
+                context,
+                area_focus=focus,
+                show_context=show_context,
+                show_labels=show_labels,
+                show_forecasts=show_forecasts,
+            ),
+            width="stretch",
+            alt="Detailed Long Beach harbor schematic: 11 pier areas, waterways, directory and live exercise inset",
+        )
+        st.caption(
+            "Select a Focus area to highlight a pier. Open Exercise detail for the measured live operating picture. The atlas is an offline schematic, not to scale."
+        )
+    with geography:
+        st.subheader("Long Beach Harbor | Geographic context")
         if online_map:
             st.pydeck_chart(
-                geographic_map(snapshot, context, focus=focus == "Exercise area"),
-                height=490,
-                key="harbor_overview",
+                geographic_map(
+                    snapshot,
+                    context,
+                    focus=focus == "Exercise area",
+                    area_focus=focus,
+                    show_context=show_context,
+                    show_labels=show_labels,
+                    show_forecasts=show_forecasts,
+                    show_uncertainty=show_uncertainty,
+                ),
+                height=620,
+                key="harbor_overview_" + focus,
             )
             st.caption(
                 "Drag to pan / scroll to zoom. If map tiles do not load, turn off the online basemap in the sidebar."
             )
         else:
-            # st.html sanitizes SVG elements away. Streamlit's image path embeds
-            # the complete SVG as a data image, with no HTML sanitizer involved.
-            st.image(
-                harbor_layout(snapshot, context),
-                width="stretch",
-                alt="Offline Long Beach harbor layout with piers and fictional vessels",
-            )
-            st.caption(
-                "Offline schematic: illustrative shoreline and facility layout; no map tiles or WebGL required."
+            st.info(
+                "Online basemap disabled. Use the Harbor atlas and Exercise detail tabs, or enable the basemap in the sidebar."
             )
         st.caption(
-            "Amber: cargo terminals · Cyan: logistics · Blue: 22 fictional context vessels. These markers are not engine assessments."
+            "Amber: cargo · Teal: rail / logistics · Lavender: port facilities · Green: waterfront · Blue: fictional vessels · Cyan outline: synthetic exercise area"
         )
     with detail:
         st.subheader("Live exercise detail")
         st.image(
-            local_map(snapshot or empty_map(), context),
+            local_map(
+                snapshot or empty_map(),
+                context if show_context else None,
+                show_forecasts=show_forecasts,
+                show_uncertainty=show_uncertainty,
+            ),
             width="stretch",
             alt="Live engine estimates, zones and conditional forecasts in local metres",
         )
@@ -123,10 +155,14 @@ def render_maps(snapshot=None, context=None):
         )
         if not snapshot or not snapshot["tracks"]:
             st.caption("No live observations yet. Start an exercise to see tracks and forecasts here.")
-        st.dataframe(pd.DataFrame(TERMINALS)[["name", "kind"]], hide_index=True, width="stretch")
-    st.caption(
-        "Public facility names and approximate display anchors from the original Dashboard. All track placement is illustrative, not for navigation."
-    )
+    with st.expander("Area directory & map reference"):
+        st.dataframe(pd.DataFrame(TERMINALS)[["label", "name", "kind"]], hide_index=True, width="stretch")
+        st.caption(
+            "Public pier and waterway names follow the [City of Long Beach harbor map (Map 10)]"
+            "(https://www.longbeach.gov/globalassets/lbcd/media-library/documents/planning/advance/general-plan/mobility-element/320615_lbds_mobility_element_web). "
+            "Facility anchors and schematic shapes are approximate. Internal assets are illustrative; no current berth assignments are claimed. "
+            "The exercise uses synthetic local policy, not real port restrictions."
+        )
 
 
 @st.fragment(run_every=1.0)

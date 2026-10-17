@@ -114,6 +114,7 @@ def snapshot(core, state):
         "ai": core.ai.metrics(),
         "sources": source_status(state),
         "zones": state["policy"]["zones"],
+        "routes": state["policy"]["routes"],
         "bounds": state["policy"]["bounds"],
         "tracks": [],
         "open_incidents": [],
