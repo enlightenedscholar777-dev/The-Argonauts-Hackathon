@@ -179,7 +179,6 @@ class DecisionEngine:
         """Validate an AI-generated proposal against the current state."""
         track = self._tracker.tracks.get(track_id)
         if track is None:
-            from simulator.engine.verifier.action_verifier import VerificationResult
             return VerificationResult.reject(f"unknown track_id {track_id}")
 
         if proposal.action_id is None:
