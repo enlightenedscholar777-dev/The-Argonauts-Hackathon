@@ -1,5 +1,11 @@
 # Harbor Resilience Simulator — hackathon MVP
 
+## Integrated v1 demo
+
+`app.py` now reads the live decision engine API and drives Pako sensors through `integration.py`. Run from the repository root with `python -m scripts.launch_demo`; see [the complete v1 guide](../docs/V1_DEMO.md). The engine must be running; the launcher handles both processes and credentials.
+
+The original independent CSV dashboard is preserved as `legacy_app.py`, alongside `core.py`, `generate_data.py`, and all six datasets. The instructions and limitations below describe that historical prototype; use `python -m streamlit run legacy_app.py` to open it separately. Its template explanation is not a connected LLM and its assessments are not the integrated engine's output.
+
 This is an **offline-capable, non-operational, fictionalized** Long Beach-inspired harbor incident and continuity simulation. It does not identify, track, or engage submarines. No real military sensor locations, real threats, or defense response logic are included.
 
 ## Quick start
@@ -9,7 +15,7 @@ Install Python 3.10+ and run in a terminal:
 ```bash
 python -m pip install -r requirements.txt
 python generate_data.py
-python -m streamlit run app.py
+python -m streamlit run legacy_app.py
 ```
 
 The app opens at http://localhost:8501. After installing dependencies it runs locally without internet access.
@@ -54,7 +60,7 @@ Run from this folder:
 
 ```bash
 python -m pip install -r requirements.txt
-python -m streamlit run app.py
+python -m streamlit run legacy_app.py
 ```
 
 The background map requires internet access to load. The internet toggle is a

@@ -49,15 +49,17 @@ class BaseSensor(ABC):
         sensor_type: SensorType,
         noise_sigma: float = 1.0,
         dropout_prob: float = 0.0,   # probability of producing nothing on a tick
+        rng: Optional[random.Random] = None,
     ) -> None:
         self.source_id    = source_id
         self.sensor_type  = sensor_type
         self.noise_sigma  = noise_sigma
         self.dropout_prob = dropout_prob
+        self.rng = rng if rng is not None else random
 
     def generate(self, now: datetime) -> List[Observation]:
         """Return 0-N observations for the given simulation timestamp."""
-        if random.random() < self.dropout_prob:
+        if self.rng.random() < self.dropout_prob:
             return []    # simulated sensor dropout
         return self._produce(now)
 
@@ -67,7 +69,7 @@ class BaseSensor(ABC):
 
     # ------------------------------------------------------------------
     def _jitter(self, value: float, sigma: Optional[float] = None) -> float:
-        return value + random.gauss(0.0, sigma if sigma is not None else self.noise_sigma)
+        return value + self.rng.gauss(0.0, sigma if sigma is not None else self.noise_sigma)
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,11 @@
 # Harbour Decision-Engine Simulator
 
+## Integrated visual demo
+
+On `v1-demo`, run `python -m scripts.launch_demo` from the repository root after installing `.[demo]`. The bridge in `harbor_simulation/integration.py` reuses these sensor generators but sends observations to the durable `harbor_engine` HTTP API. The dashboard shows that API's assessments. See [the integration guide](../docs/V1_DEMO.md).
+
+The original runner and prototype engine below are preserved for comparison. They are not used to classify risk in the integrated demo. `BaseSensor` now accepts an optional independent random generator so the integrated exercise's noise is repeatable without changing global random state.
+
 Prototype simulator for the three-level maritime harbour security architecture
 described in [`docs/decision_engine/structure.md`](../docs/decision_engine/structure.md).
 

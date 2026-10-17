@@ -1,4 +1,25 @@
-# Harbor Decision Engine
+# Harbor Watch — v1 integrated demo
+
+The `v1-demo` branch combines the CPU decision engine, `origin/Dashboard`, and `origin/Pako-Simulator-Branch`. Pako's synthetic sonar and telemetry now feed the engine over authenticated HTTP, and the Streamlit dashboard displays its persisted assessments, forecasts, recommendations, and human handoffs.
+
+## Launch the visual demo
+
+From Windows PowerShell, reuse the existing `.venv`:
+
+```powershell
+Set-Location D:\The-Argonauts-Hackathon
+.\.venv\Scripts\python.exe -m pip install -r requirements-demo-lock.txt
+.\.venv\Scripts\python.exe -m pip install -e ".[demo]"
+.\.venv\Scripts\python.exe -m scripts.launch_demo
+```
+
+Open **http://127.0.0.1:8501** and select **Start exercise**. One command starts both services; no token copying is needed. The default is fully local with AI off and an offline map. Pause, step, sonar loss, duplicate replay, and durable acknowledgment are available in the console. Ctrl+C stops both services and preserves the database.
+
+For a fresh clone, create `.venv` with Python 3.12 first (`py -3.12 -m venv .venv`, or use your installed Python executable). On macOS/Linux use `.venv/bin/python` in place of the Windows path.
+
+See the **[integration guide and presentation script](docs/V1_DEMO.md)** for AI modes, recovered sessions, alternate ports, verification, and limitations. The engine-only commands below remain available.
+
+## Decision engine
 
 A working CPU-only, single-host harbor watch demonstration. Synthetic observations flow through a NumPy Kalman filter, geometric forecasts, explicit mission permissions, policy rules, and a durable human-handoff workflow. Optional AI summarizes evidence; deterministic assessments work without a key or network.
 

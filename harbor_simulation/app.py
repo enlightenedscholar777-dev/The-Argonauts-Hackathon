@@ -1,141 +1,273 @@
+"""Streamlit console for the live Pako -> decision engine integration."""
+
+import atexit
+import os
 from pathlib import Path
-import hashlib
+
 import pandas as pd
 import streamlit as st
-import pydeck as pdk
-from core import assess, capability_state
 
-st.set_page_config(page_title='Harbor Resilience | Long Beach Harbor', page_icon='⚓', layout='wide', initial_sidebar_state='expanded')
-ROOT = Path(__file__).resolve().parent
-st.markdown('''<style>
-.stApp{background:#071422;color:#e9f3fc}.block-container{padding-top:1.3rem;max-width:1600px}
+from harbor_engine.settings import Settings
+from harbor_simulation.integration import SCENARIOS, DemoController, DemoError, EngineAPI
+from harbor_simulation.views import geographic_map, local_map
+
+st.set_page_config(page_title="Harbor Watch | Live demo", page_icon="⚓", layout="wide")
+st.markdown(
+    """<style>
+.stApp{background:#071422;color:#e9f3fc}.block-container{padding-top:1.4rem;max-width:1600px}
 [data-testid="stSidebar"]{background:#0c2034;border-right:1px solid #204263}
-h1,h2,h3{color:#eaf6ff!important}h1{font-size:2.05rem!important;letter-spacing:-.03em}
-[data-testid="stMetric"]{background:#10263b;border:1px solid #21445f;border-radius:13px;padding:13px}
-[data-testid="stMetricValue"]{font-size:1.6rem}.stButton button{border-radius:9px}
-div[data-testid="stDataFrame"]{border-radius:12px;overflow:hidden}
-</style>''',unsafe_allow_html=True)
+h1,h2,h3{color:#eaf6ff!important}h1{letter-spacing:-.035em}
+[data-testid="stMetric"]{background:#10263b;border:1px solid #21445f;border-radius:12px;padding:12px}
+[data-testid="stMetricValue"]{font-size:1.45rem}.stButton button{border-radius:9px}
+</style>""",
+    unsafe_allow_html=True,
+)
 
-@st.cache_data
-def load():
-    return {p.stem: pd.read_csv(p) for p in sorted((ROOT/'data').glob('*.csv'))}
-d=load()
 
-st.sidebar.title('⚓ Simulation controls')
-st.sidebar.caption('LONG BEACH HARBOR · EDUCATIONAL DIGITAL TWIN')
-scenario=st.sidebar.selectbox('Incident scenario',['Normal operations','Unverified underwater report','Conflicting reports','Sensor outage','Port operations disruption'])
-zone=st.sidebar.selectbox('Fictional simulation sector',['A','B','C','D'])
-playback=st.sidebar.slider('Playback position (%)',0,100,100,5)
-st.sidebar.markdown('#### Fault injection')
-offline=st.sidebar.toggle('Disconnect internet',False)
-ai_down=st.sidebar.toggle('AI service unavailable',False)
-sensor_down=st.sidebar.toggle('Sensor coverage lost',False)
-policy_down=st.sidebar.toggle('Policy snapshot unavailable',False)
-replay=st.sidebar.toggle('Replay old/duplicate observations',False)
-st.sidebar.info('CPU assessments work without AI or internet. This app does not control vessels or make clearance decisions.')
+@st.cache_resource
+def controller(base_url):
+    instance = DemoController(EngineAPI(base_url, Settings()))
+    atexit.register(instance.close)
+    return instance
 
-st.title('⚓ Harbor Resilience Simulator')
-st.caption('LONG BEACH HARBOR  |  Maritime continuity and human decision support  |  DEMONSTRATION / SYNTHETIC EVENTS')
-if scenario != 'Normal operations':
-    st.warning(f'EXERCISE SCENARIO: {scenario} — simulated observations only; no real incident is implied.')
 
-statuses=capability_state(offline,ai_down,sensor_down or scenario=='Sensor outage',policy_down)
-metrics=st.columns(5)
-for col,(name,value) in zip(metrics,statuses.items()):
-    col.metric(name,value)
+try:
+    demo = controller(os.environ.get("HARBOR_ENGINE_URL", "http://127.0.0.1:8000"))
+except (ValueError, DemoError):
+    st.error("Local configuration is incomplete. Run python -m scripts.init_env, then restart the demo.")
+    st.stop()
 
-# Publicly named civilian facilities; locations are approximate visual anchors, not operational coordinates.
-terminals=pd.DataFrame([
-    {'name':'Pier T Container Terminal','kind':'Cargo','lat':33.752,'lon':-118.223},
-    {'name':'Pier J Container Terminal','kind':'Cargo','lat':33.744,'lon':-118.194},
-    {'name':'Pier G Container Terminal','kind':'Cargo','lat':33.757,'lon':-118.205},
-    {'name':'Pier B Rail Support Area','kind':'Logistics','lat':33.774,'lon':-118.218},
-])
-terminals['color']=terminals.kind.map({'Cargo':[255,171,65,230],'Logistics':[52,210,224,230]})
-terminals['radius']=360
+st.title("⚓ Harbor watch")
+st.caption("ARGONAUTS / LIVE HARBOR RESILIENCE DEMO · SYNTHETIC DATA · HUMAN DECISION SUPPORT")
 
-# Deterministic fictional visual markers, not reconstructed vessel positions.
-vessels=[]
-for i in range(22):
-    a=int(hashlib.sha256(f'vessel-{i}'.encode()).hexdigest()[:8],16)
-    lat=33.735+(a%3600)/100000
-    lon=-118.248+((a//3600)%6500)/100000
-    vessels.append({'name':f'SIM-V{i+1:02d}','lat':lat,'lon':lon,'radius':125,'color':[58,157,255,185]})
-vessel_df=pd.DataFrame(vessels)
-incidents=pd.DataFrame([{'name':'SIMULATED CONTACT — UNVERIFIED','lat':33.740,'lon':-118.217,'radius':550,'color':[255,95,102,200]}])
 
-st.subheader('Long Beach Harbor | Interactive harbour overview')
-map_col,side_col=st.columns([3.3,1.2],gap='medium')
-with map_col:
-    layers=[pdk.Layer('ScatterplotLayer',terminals,get_position='[lon, lat]',get_fill_color='color',get_radius='radius',pickable=True),
-            pdk.Layer('ScatterplotLayer',vessel_df,get_position='[lon, lat]',get_fill_color='color',get_radius='radius',pickable=True)]
-    if scenario!='Normal operations':
-        layers.append(pdk.Layer('ScatterplotLayer',incidents,get_position='[lon, lat]',get_fill_color='color',get_radius='radius',pickable=True))
-    st.pydeck_chart(pdk.Deck(map_style='https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-        initial_view_state=pdk.ViewState(latitude=33.754,longitude=-118.218,zoom=12.3,pitch=0),layers=layers,
-        tooltip={'html':'<b>{name}</b><br/>{kind}','style':{'backgroundColor':'#0c2237','color':'white'}}),height=490)
-    st.caption('● Cyan: illustrative logistics marker  ·  ● Amber: public cargo facilities  ·  ● Blue: fictional vessel markers  ·  ● Red: fictional incident. Map positions are illustrative; not for navigation or security operations.')
-with side_col:
-    st.markdown('#### Harbour status')
-    st.success('SIMULATED NORMAL' if scenario=='Normal operations' else 'HUMAN REVIEW REQUIRED')
-    st.metric('Fictional vessels',len(vessel_df))
-    st.metric('Illustrative facilities',len(terminals))
-    st.metric('Exercise incidents',0 if scenario=='Normal operations' else 1)
-    st.markdown('**Four public-facing facility references**')
-    st.dataframe(terminals[['name','kind']],hide_index=True,use_container_width=True,height=190)
+def perform(function, *args, **kwargs):
+    try:
+        function(*args, **kwargs)
+        st.session_state.pop("action_error", None)
+    except DemoError as error:
+        st.session_state["action_error"] = str(error)
+    st.rerun()
 
-obs=d['synthetic_observations']
-sub=obs[obs.fictional_zone==zone].copy().sort_values('observed_at')
-sub=sub.iloc[:max(1,round(len(sub)*playback/100))].tail(12)
-if replay and len(sub): sub=pd.concat([sub,sub.tail(3)],ignore_index=True)
-before=len(sub)
-sub=sub.drop_duplicates(subset=['event_id'],keep='first')
-result=assess([] if sensor_down or scenario=='Sensor outage' else sub.to_dict('records'),not(sensor_down or scenario=='Sensor outage'),not policy_down)
 
-st.subheader('Operations & incident intelligence')
-t1,t2,t3,t4=st.tabs(['📊 Traffic & trends','🛡️ Incident assessment','📋 Evidence & data','🧪 Continuity stress test'])
-with t1:
-    vessel_data=d['synthetic_surface_vessels'].copy()
-    date_col=next((c for c in vessel_data.columns if 'time' in c or 'date' in c),None)
-    if date_col:
-        vessel_data['day']=pd.to_datetime(vessel_data[date_col],errors='coerce').dt.date
-        counts=vessel_data.groupby('day').size().rename('Synthetic vessel records')
-        st.line_chart(counts.tail(90),height=270)
-    else:
-        st.bar_chart(vessel_data.select_dtypes(include='number').head(50))
-    st.caption('Synthetic vessel record counts. These are not real AIS traffic measurements.')
-with t2:
-    a,b=st.columns([1,2])
-    with a:
-        st.markdown('**Deterministic CPU decision core**')
-        st.warning(result.state)
-        for reason in result.reasons: st.write('•',reason)
-        st.metric('Duplicates filtered',before-len(sub))
-    with b:
-        st.markdown('**AI-assisted explanation (optional)**')
-        if ai_down:
-            st.info('AI offline. Deterministic explanation remains available.')
+with st.sidebar:
+    st.title("Exercise controls")
+    scenario = st.selectbox("Scenario", list(SCENARIOS), key="scenario")
+    st.caption(SCENARIOS[scenario])
+    seed = st.number_input("Noise seed", min_value=0, max_value=2**32 - 1, value=42)
+    autoplay = st.checkbox("Run automatically", value=True, key="autoplay")
+    if st.button("Start exercise", type="primary", key="start"):
+        perform(demo.start, scenario, int(seed), autoplay)
+    st.caption(
+        "Starting explicitly confirms the synthetic research mission. Other contacts remain unverified."
+    )
+    a, b, c = st.columns(3)
+    if a.button("Pause", key="pause"):
+        perform(demo.pause)
+    if b.button("Resume", key="resume"):
+        perform(demo.resume)
+    if c.button("Step +1s", key="step"):
+        perform(demo.step)
+    st.caption(
+        "Manual scenario clock: pause freezes time. Automatic playback advances 1 second per step and pauses at 90s."
+    )
+    st.divider()
+    st.subheader("Map")
+    online_map = st.checkbox("Show online Long Beach basemap", value=False)
+    st.caption("The local map works offline. Geographic placement is illustrative only.")
+    st.info(
+        "The engine runs on your CPU. Groq is optional; provider failures never replace the deterministic assessment."
+    )
+
+
+@st.fragment(run_every=1.0)
+def live_panel():
+    state = demo.view()
+    try:
+        status = demo.api.status()
+        session_id = status["active_session_id"] or state["session_id"]
+        snapshot = demo.api.snapshot(session_id) if session_id else None
+    except DemoError as error:
+        st.error(str(error))
+        st.warning("Live data is unavailable. No current assessment is displayed.")
+        return
+    if st.session_state.get("action_error"):
+        st.error(st.session_state["action_error"])
+    if state["error"]:
+        st.error(state["error"])
+    ai = status["ai"]
+    tracks = snapshot["tracks"] if snapshot else []
+    metrics = st.columns(5)
+    metrics[0].metric("CPU decision core", status["core"])
+    metrics[1].metric("Storage", status["storage"])
+    metrics[2].metric("AI provider / status", f"{ai['provider']} / {ai['status']}")
+    metrics[3].metric("Live tracks", len(tracks))
+    metrics[4].metric(
+        "Human handoffs", sum(bool(t["incident"] and t["incident"].get("handoff_required")) for t in tracks)
+    )
+    if not snapshot:
+        st.info(
+            "Ready. Choose an exercise and press Start exercise to send Pako sensor observations to the decision engine."
+        )
+        return
+    owned = session_id == state["session_id"]
+    active = not snapshot["session"]["stopped"]
+    phase = (
+        "RUNNING"
+        if owned and state["running"]
+        else "PAUSED"
+        if owned and active
+        else "STOPPED"
+        if not active
+        else "EXTERNAL SESSION"
+    )
+    st.caption(
+        f"{phase} · {snapshot['session']['name']} · Scenario time {snapshot['session']['current_time']} · {session_id}"
+    )
+    if active and st.button("Stop active exercise", key="stop"):
+        perform(demo.stop, session_id)
+    if not owned and active:
+        st.warning(
+            "An existing session was recovered or started elsewhere. It is displayed without taking over its simulator. Stop it explicitly to start a new exercise."
+        )
+
+    left, right = st.columns([2.1, 1])
+    with left:
+        st.subheader("Harbor overview")
+        if online_map:
+            st.pydeck_chart(geographic_map(snapshot), height=460)
+            st.caption(
+                "Online tiles / illustrative projection. Switch off the basemap for the offline local map."
+            )
         else:
-            st.info('Demo explanation (template, not a connected LLM): Observation identity remains unverified. Check evidence provenance and obtain authorized human review.')
-        st.markdown('**Operator acknowledgment**')
-        if 'ack' not in st.session_state: st.session_state.ack=False
-        if st.button('Acknowledge for human review'):st.session_state.ack=True
-        st.write('Acknowledged for review' if st.session_state.ack else 'Awaiting operator acknowledgment')
-with t3:
-    st.markdown('**Recent synthetic observations**')
-    st.dataframe(sub[['event_id','observed_at','source_type','quality','delivery_status','provenance']],hide_index=True,use_container_width=True)
-    st.markdown('**Dataset inventory**')
-    st.dataframe(pd.DataFrame([{'file':k+'.csv','rows':len(v),'provenance':'SYNTHETIC'} for k,v in d.items()]),hide_index=True,use_container_width=True)
-with t4:
-    a,b=st.columns(2)
-    with a:
-        n=st.slider('Fictional vessels scheduled',5,60,20)
-        affected=st.slider('Vessels affected in illustrative restricted-operations scenario',0,n,6)
-    with b:
-        delay=st.slider('Assumed delay per affected vessel (hours)',1,24,6)
-        st.metric('Full suspension: vessel-delay hours',n*delay)
-        st.metric('Illustrative partial restriction: vessel-delay hours',affected*delay,delta=f'{(affected-n)*delay:+d} vs full suspension')
-    st.caption('Scenario arithmetic only, not a recommendation that partial restrictions are safe. All operating restrictions require independent authorized assessment.')
+            st.html(local_map(snapshot, state["context"] if owned else {}))
+        st.caption(
+            "Dots = engine estimates · Dashed lines = conditional mean forecasts · Red/amber areas = demo policy zones · Blue vessel = synthetic context only"
+        )
+    with right:
+        st.subheader("Live fault controls")
+        if owned and active:
+            if st.button(
+                "Restore sonar" if state["sensor_loss"] else "Lose sonar coverage", key="sensor_fault"
+            ):
+                perform(demo.set_fault, "sensor_loss", not state["sensor_loss"])
+            if st.button(
+                "Stop replaying duplicates" if state["replay"] else "Replay duplicate observations",
+                key="replay_fault",
+            ):
+                perform(demo.set_fault, "replay", not state["replay"])
+            st.caption(
+                "During sonar loss, scenario time and telemetry continue. Position freshness must degrade."
+            )
+        ai_fault = "AI_UNAVAILABLE" in snapshot["simulated_faults"]
+        if active and ai["provider"] != "off":
+            if st.button("Clear AI outage" if ai_fault else "Simulate AI unavailable", key="ai_fault"):
+                perform(demo.ai_fault, not ai_fault, session_id)
+        st.write(
+            "Sonar:",
+            "DISCONNECTED"
+            if owned and state["sensor_loss"]
+            else snapshot["sources"].get("sim_sonar_01", {}).get("health", "UNKNOWN"),
+        )
+        st.write("AI outage injection:", "ACTIVE (expires after 5 min)" if ai_fault else "inactive")
+        st.caption(
+            "AI faults apply on the next eligible request. Rate limits and circuit cooldowns still apply."
+        )
+        st.metric("Engine-accepted events", state["counts"].get("APPLIED", 0) if owned else "—")
+        st.metric("Duplicates rejected", state["counts"].get("DUPLICATE", 0) if owned else "—")
+        if owned and state["context"].get("current_mps") is not None:
+            st.caption(f"Synthetic current: {state['context']['current_mps']:.2f} m/s (context only)")
 
+    assessments, evidence, continuity = st.tabs(
+        ["Assessments & recommendations", "Evidence & delivery", "Continuity context"]
+    )
+    with assessments:
+        for track in tracks:
+            with st.container(border=True):
+                st.subheader(f"{track['track_id']} · {track['risk']['current_band']}")
+                cols = st.columns(3)
+                cols[0].metric(
+                    "Recommended action", track["recommendation"]["primary_action"].replace("_", " ")
+                )
+                cols[1].metric("Authorization", track["authorization"]["status"])
+                cols[2].metric("Position evidence", track["capability"]["data_quality"])
+                st.write(track["recommendation"]["deterministic_explanation"])
+                st.caption(
+                    f"Observation age {track['source']['observation_age_seconds']:.1f}s · Speed {track['estimate']['speed_mps']:.1f} m/s · Revision {track['core_revision']} · {track['assessment_id']}"
+                )
+                st.write("Reason codes:", ", ".join(track["risk"]["reason_codes"]))
+                st.write(
+                    "Next useful evidence:", ", ".join(track["recommendation"]["eligible_next_evidence"])
+                )
+                incident = track["incident"]
+                if incident:
+                    st.write("Incident:", incident["state"], "·", incident["incident_id"])
+                    if (
+                        active
+                        and incident["state"] != "CLOSED"
+                        and (incident["state"] != "HUMAN_OWNED" or incident.get("handoff_required"))
+                    ):
+                        if st.button("Acknowledge human handoff", key=f"ack_{track['track_id']}"):
+                            perform(demo.acknowledge, session_id, track["track_id"])
+                enrichment = track["ai_enrichment"]
+                if active and ai["provider"] != "off":
+                    if st.button("Request AI explanation", key=f"enrich_{track['track_id']}"):
+                        perform(demo.enrich, session_id, track["track_id"])
+                if enrichment:
+                    st.info(
+                        f"Optional AI explanation · {enrichment['provider']} / {enrichment['model']} · basis revision {enrichment['basis_revision']}: {enrichment['response']['summary']}"
+                    )
+                else:
+                    st.caption(
+                        f"No AI explanation attached ({ai['status']}). The recommendation above is the CPU engine's result."
+                    )
+                with st.expander("Assessment packet"):
+                    st.json(track)
+    with evidence:
+        st.write("Engine source health")
+        st.dataframe(pd.DataFrame.from_dict(snapshot["sources"], orient="index"), width="stretch")
+        if owned:
+            st.write("HTTP delivery receipts")
+            st.dataframe(pd.DataFrame(state["receipts"]), hide_index=True, width="stretch")
+            if state["trend"]:
+                trend = pd.DataFrame(state["trend"]).pivot_table(
+                    index="second", columns="track", values="age_seconds", aggfunc="last"
+                )
+                st.line_chart(trend, height=200)
+                st.caption(
+                    "Position observation age in scenario seconds; transport heartbeats do not reset it."
+                )
+        if st.button("Load committed audit history", key="history"):
+            try:
+                history = demo.api.request(
+                    "GET", f"/v1/sessions/{session_id}/history?limit=100", role="viewer"
+                )
+                st.session_state["audit_history"] = (session_id, history)
+            except DemoError as error:
+                st.error(str(error))
+        saved_history = st.session_state.get("audit_history")
+        if saved_history and saved_history[0] == session_id:
+            st.json(saved_history[1])
+    with continuity:
+        st.caption(
+            "Preserved Dashboard synthetic traffic dataset and scenario arithmetic. These do not drive live assessments."
+        )
+        traffic = pd.read_csv(Path(__file__).parent / "data" / "synthetic_surface_vessels.csv")
+        traffic["day"] = pd.to_datetime(traffic["timestamp"]).dt.date
+        st.line_chart(traffic.groupby("day").size().rename("Synthetic vessel records"), height=180)
+        c1, c2, c3 = st.columns(3)
+        vessels = c1.slider("Scheduled fictional vessels", 5, 60, 20)
+        affected = c2.slider("Affected vessels", 0, vessels, min(6, vessels))
+        delay = c3.slider("Assumed delay (hours)", 1, 24, 6)
+        c1.metric("Full suspension: vessel-hours", vessels * delay)
+        c2.metric("Illustrative partial restriction", affected * delay)
+        st.caption(
+            "Illustrative arithmetic only. Operating restrictions require independent authorized assessment."
+        )
+
+
+live_panel()
 st.divider()
-st.caption('Hackathon MVP • Public-facing terminal names; illustrative approximate display markers • All vessel positions, incidents, missions and sensor observations are synthetic • No actual naval surveillance, tracking or interdiction.')
+st.caption(
+    "Synthetic exercise / local demo policy / advisory recommendations / no vessel control. LOW is not a safety guarantee. Live assessment data comes only from the decision engine API."
+)
