@@ -107,7 +107,11 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         layers = {layer["id"]: layer for layer in deck["layers"]}
         assert len(layers["harbor-terminals"]["data"]) == 11
         assert len(layers["waterway-labels"]["data"]) == 8
-        assert len(layers["context-vessels"]["data"]) == 22
+        assert len(layers["context-vessels"]["data"]) == 32
+        assert layers["exercise-boundary"]["widthUnits"] == "pixels"
+        assert layers["exercise-label"]["getTextAnchor"] == "start"
+        assert layers["track-labels"]["getTextAnchor"] == "start"
+        assert all(layer.get("widthUnits", "pixels") == "pixels" for layer in deck["layers"])
         assert not layers["engine-tracks"]["data"]
         assert len(app.image) == 2
         app.checkbox(key="online_map").uncheck().run()
@@ -152,6 +156,11 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         app.selectbox(key="map_focus").select("Exercise area").run()
         app.button(key="step").click().run()
         demo = controllers[0]
+        assert demo.view()["elapsed"] == 1
+        app.select_slider(key="playback_speed").set_value(4).run()
+        assert demo.period == 0.25
+        app.run()
+        assert demo.period == 0.25
         assert demo.view()["elapsed"] == 1
         for _ in range(39):
             demo.step()
@@ -198,6 +207,15 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         app.button(key="stop").click().run()
         assert api.status()["active_session_id"] is None
         assert not app.exception
+        app.button(key="preset_Busy harbor").click().run()
+        assert app.selectbox(key="scenario").value == "Busy harbor"
+        busy_id = api.status()["active_session_id"]
+        assert len(api.snapshot(busy_id)["tracks"]) == 8
+        assert len(demo.view()["context"]["traffic"]) == 32
+        app.button(key="preset_Normal operations").click().run()
+        assert api.snapshot(busy_id)["session"]["stopped"]
+        assert len(api.snapshot(api.status()["active_session_id"])["tracks"]) == 1
+        app.button(key="stop").click().run()
         # The UI must clear current results when the engine goes away.
         process.terminate()
         process.wait(timeout=10)

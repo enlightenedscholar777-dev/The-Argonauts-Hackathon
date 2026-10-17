@@ -50,14 +50,27 @@ def perform(function, *args, **kwargs):
     st.rerun()
 
 
+requested_scenario = st.session_state.pop("requested_scenario", None)
+if requested_scenario:
+    st.session_state["scenario"] = requested_scenario
+
 with st.sidebar:
     st.title("Exercise controls")
     scenario = st.selectbox("Scenario", list(SCENARIOS), key="scenario")
     st.caption(SCENARIOS[scenario])
     seed = st.number_input("Noise seed", min_value=0, max_value=2**32 - 1, value=42)
     autoplay = st.checkbox("Run automatically", value=True, key="autoplay")
+    traffic_count = st.slider("Surface traffic for next exercise", 12, 60, 32, 4, key="traffic_count")
+    st.select_slider(
+        "Playback speed",
+        options=[1, 2, 4],
+        value=int(1 / demo.period),
+        format_func=lambda n: f"{n}×",
+        key="playback_speed",
+        on_change=lambda: demo.set_speed(st.session_state["playback_speed"]),
+    )
     if st.button("Start exercise", type="primary", key="start"):
-        perform(demo.start, scenario, int(seed), autoplay)
+        perform(demo.start, scenario, int(seed), autoplay, traffic_count)
     st.caption(
         "Starting explicitly confirms the synthetic research mission. Other contacts remain unverified."
     )
@@ -69,7 +82,7 @@ with st.sidebar:
     if c.button("Step +1s", key="step"):
         perform(demo.step)
     st.caption(
-        "Manual scenario clock: pause freezes time. Automatic playback advances 1 second per step and pauses at 90s."
+        "Pause freezes all movement and evidence age. Playback speed advances the same scenario clock for traffic and engine contacts; each exercise pauses at 90s."
     )
     st.divider()
     st.subheader("Map")
@@ -88,6 +101,17 @@ with st.sidebar:
     st.info(
         "The engine runs on your CPU. Groq is optional; provider failures never replace the deterministic assessment."
     )
+
+
+with st.expander("Scenario presets · click to run", expanded=True):
+    st.caption(
+        "Each button starts its scenario and archives your current exercise. An externally started session must be stopped explicitly."
+    )
+    presets = st.columns(4)
+    for index, name in enumerate(SCENARIOS):
+        if presets[index % 4].button(name, key="preset_" + name, help=SCENARIOS[name], width="stretch"):
+            st.session_state["requested_scenario"] = name
+            perform(demo.start, name, int(seed), autoplay, traffic_count, replace_owned=True)
 
 
 def render_maps(snapshot=None, context=None):
@@ -109,7 +133,7 @@ def render_maps(snapshot=None, context=None):
             alt="Detailed Long Beach harbor schematic: 11 pier areas, waterways, directory and live exercise inset",
         )
         st.caption(
-            "Select a Focus area to highlight a pier. Open Exercise detail for the measured live operating picture. The atlas is an offline schematic, not to scale."
+            "Surface vessels move on the exercise clock; trails show recent motion. Amber vessels are holding. Live engine assessments update in the inset and right panel. The atlas is schematic, not to scale."
         )
     with geography:
         st.subheader("Long Beach Harbor | Geographic context")
@@ -163,6 +187,19 @@ def render_maps(snapshot=None, context=None):
             "Facility anchors and schematic shapes are approximate. Internal assets are illustrative; no current berth assignments are claimed. "
             "The exercise uses synthetic local policy, not real port restrictions."
         )
+    if context and context.get("traffic"):
+        with st.expander("Surface traffic & dataset"):
+            source = context["dataset"]
+            st.caption(
+                f"{source['source']} · {source['records']} records / {source['identities']} vessel identities. Generated paths use CSV profiles, not recorded AIS coordinates. Surface vessels are context; engine contacts are assessed separately."
+            )
+            st.dataframe(
+                pd.DataFrame(context["traffic"])[
+                    ["vessel_id", "vessel_type", "sector", "source_status", "status", "speed_mps"]
+                ],
+                hide_index=True,
+                width="stretch",
+            )
 
 
 @st.fragment(run_every=1.0)
@@ -183,13 +220,17 @@ def live_panel():
         st.error(state["error"])
     ai = status["ai"]
     tracks = snapshot["tracks"] if snapshot else []
-    metrics = st.columns(5)
+    metrics = st.columns(6)
     metrics[0].metric("CPU decision core", status["core"])
     metrics[1].metric("Storage", status["storage"])
     metrics[2].metric("AI provider / status", f"{ai['provider']} / {ai['status']}")
     metrics[3].metric("Live tracks", len(tracks))
     metrics[4].metric(
         "Human handoffs", sum(bool(t["incident"] and t["incident"].get("handoff_required")) for t in tracks)
+    )
+    metrics[5].metric(
+        "Surface traffic",
+        len(state["context"].get("traffic", [])) if session_id == state["session_id"] else 0,
     )
     if not snapshot:
         st.info(

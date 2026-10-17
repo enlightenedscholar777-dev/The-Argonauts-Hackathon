@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from harbor_engine.main import create_app
 from harbor_simulation.integration import DemoController, DemoError, EngineAPI, position_payload
-from harbor_simulation.views import local_map
+from harbor_simulation.views import harbor_layout, local_map
 from simulator.data_models.observation import BearingRange, Observation
 
 
@@ -127,11 +127,52 @@ def test_background_feeder_pause_and_viewers_do_not_advance_clock(tmp_path):
                 time.sleep(0.02)
             demo.pause()
             before = demo.api.snapshot(demo.session_id)["session"]["current_time"]
+            traffic_before = demo.view()["context"]["traffic"]
             for _ in range(5):
                 demo.view()
                 demo.api.snapshot(demo.session_id)
             time.sleep(0.1)
             assert demo.view()["elapsed"] >= 3
             assert demo.api.snapshot(demo.session_id)["session"]["current_time"] == before
+            assert demo.view()["context"]["traffic"] == traffic_before
         finally:
             demo.close()
+
+
+@pytest.mark.parametrize(
+    "scenario,steps",
+    [
+        ("Busy harbor", 12),
+        ("Conflicting reports", 12),
+        ("Sensor outage", 22),
+        ("Port operations disruption", 12),
+        ("Unverified underwater report", 12),
+    ],
+)
+def test_presets_drive_real_engine_and_moving_atlas(integrated, scenario, steps):
+    demo = integrated
+    demo.start(scenario, autoplay=False, traffic_count=40)
+    initial = demo.view()["context"]
+    initial_svg = harbor_layout(demo.api.snapshot(demo.session_id), initial)
+    assert len(initial["traffic"]) == 40
+    assert initial["dataset"]["records"] > 40
+    assert initial["dataset"]["position_provenance"].endswith("CSV contains no coordinates")
+    for _ in range(steps):
+        demo.step()
+    after = demo.view()["context"]
+    tracks = by_track(demo)
+    assert any(a["anchor"] != b["anchor"] for a, b in zip(initial["traffic"], after["traffic"]))
+    assert harbor_layout(demo.api.snapshot(demo.session_id), after) != initial_svg
+    if scenario == "Busy harbor":
+        assert len(tracks) == 8
+    elif scenario == "Conflicting reports":
+        assert "SENSOR_CONFLICT" in tracks["research_auv_02"]["risk"]["reason_codes"]
+    elif scenario == "Sensor outage":
+        assert tracks["research_auv_02"]["capability"]["data_quality"] == "LOST"
+        for _ in range(10):
+            demo.step()
+        assert by_track(demo)["research_auv_02"]["capability"]["data_quality"] == "FRESH"
+    elif scenario == "Port operations disruption":
+        assert all(v["status"] == "HOLDING" for v in after["traffic"][::4])
+    else:
+        assert tracks["unknown_01"]["authorization"]["status"] == "UNKNOWN"

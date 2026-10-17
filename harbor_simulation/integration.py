@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 import httpx
 
 from harbor_engine.settings import Settings
+from harbor_simulation.traffic import HarborTraffic
 from simulator.data_models.observation import BearingRange
 from simulator.sensors.sensors import (
     AISSensor,
@@ -32,6 +33,11 @@ SCENARIOS = {
     "Harbor approach": "Unknown contact approaches a restricted zone alongside a confirmed research vehicle.",
     "Normal operations": "Confirmed research vehicle follows its permitted route.",
     "Research route deviation": "The confirmed research vehicle turns off its route after 15 seconds.",
+    "Unverified underwater report": "An unverified sonar contact approaches the restricted area; verify identity before any clearance.",
+    "Conflicting reports": "Inconsistent sonar positions are injected at 10–13s; the engine rejects outliers and reports the conflict.",
+    "Sensor outage": "Sonar drops out at 10s and returns at 30s. Telemetry and surface traffic continue.",
+    "Port operations disruption": "A quarter of surface traffic holds at 10s while an unknown contact approaches the demo zone.",
+    "Busy harbor": "Eight simultaneous engine contacts and dataset-seeded surface traffic exercise the existing CPU pipeline.",
 }
 
 
@@ -126,15 +132,32 @@ def position_payload(observation):
 
 
 class PakoScenario:
-    def __init__(self, name, seed):
+    def __init__(self, name, seed, traffic_count=32):
         if name not in SCENARIOS:
             raise DemoError("Choose a supported scenario.")
         self.name = name
+        self.traffic = HarborTraffic(seed, traffic_count, name)
         rng = random.Random(seed)
         self.research = ContactSpec("research_auv_02", x0=60, y0=50, vx=2, vy=0)
         contacts = [self.research]
-        if name == "Harbor approach":
+        if name in {
+            "Harbor approach",
+            "Unverified underwater report",
+            "Port operations disruption",
+            "Busy harbor",
+        }:
             contacts.insert(0, ContactSpec("unknown_01", x0=100, y0=160, vx=5, vy=0))
+        if name == "Busy harbor":
+            for i in range(6):
+                contacts.append(
+                    ContactSpec(
+                        f"contact_{i + 1:02d}",
+                        x0=80 + (i % 3) * 260,
+                        y0=300 + (i // 3) * 280,
+                        vx=1.2 + i * 0.12,
+                        vy=0,
+                    )
+                )
         self.sonar = SonarSensor(
             "sim_sonar_01",
             x=0,
@@ -186,6 +209,10 @@ class PakoScenario:
         context = {
             "surface": [{"name": "SIM-SUPPORT", "x_m": o.value.x, "y_m": o.value.y} for o in surface],
             "current_mps": environment[0].value["value"] if environment else None,
+            "traffic": self.traffic.sample(elapsed),
+            "dataset": self.traffic.metadata,
+            "elapsed": elapsed,
+            "scenario": self.name,
         }
         return observations, telemetry, context
 
@@ -241,22 +268,26 @@ class DemoController:
                     "sensor_loss": self.sensor_loss,
                     "replay": self.replay,
                     "error": self.last_error,
-                    "context": self.context,
+                    "context": {**self.context, "running": self.running},
                     "counts": dict(self.counts),
                     "receipts": list(self.receipts),
                     "trend": list(self.trend),
                 }
             )
 
-    def start(self, scenario="Harbor approach", seed=42, autoplay=True):
+    def start(
+        self, scenario="Harbor approach", seed=42, autoplay=True, traffic_count=32, replace_owned=False
+    ):
         with self.lock:
             active = self.api.status()["active_session_id"]
-            if active:
+            if active and not (replace_owned and active == self.session_id):
                 raise DemoError(
                     "An exercise is already active. Stop it explicitly before starting a new one."
                 )
             self.running = False
-            candidate = PakoScenario(scenario, seed)
+            candidate = PakoScenario(scenario, seed, traffic_count)
+            if active:
+                self.api.command(f"/v1/sessions/{active}/stop")
             session = self.api.command(
                 "/v1/sessions",
                 name=f"v1-demo / {scenario}",
@@ -300,6 +331,12 @@ class DemoController:
             if name not in {"sensor_loss", "replay"}:
                 raise DemoError("Unknown simulator fault")
             setattr(self, name, enabled)
+
+    def set_speed(self, speed):
+        with self.lock:
+            if speed not in (1, 2, 4):
+                raise DemoError("Playback speed must be 1, 2 or 4.")
+            self.period = 1 / speed
 
     def _event(self, kind, payload, when, source="sim_sonar_01"):
         self.sequence[source] += 1
@@ -358,9 +395,17 @@ class DemoController:
         raw, telemetry, self.context = self.scenario.sample(
             datetime.fromisoformat(when.replace("Z", "+00:00")), self.elapsed
         )
+        if self.scenario.name == "Sensor outage":
+            if self.elapsed == 10:
+                self.sensor_loss = True
+            elif self.elapsed == 30:
+                self.sensor_loss = False
         if not self.sensor_loss:
             for observation in raw:
-                event = self._event("observation", position_payload(observation), when)
+                payload = position_payload(observation)
+                if self.scenario.name == "Conflicting reports" and 10 <= self.elapsed <= 13:
+                    payload.update(x_m=990, y_m=690)
+                event = self._event("observation", payload, when)
                 self._send(event)
                 if self.replay:
                     self._send(event)  # Exact same ID, sequence, and timestamp: engine owns deduplication.

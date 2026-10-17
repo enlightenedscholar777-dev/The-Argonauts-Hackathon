@@ -3,11 +3,16 @@
 import html
 import math
 
-from harbor_simulation.map_catalog import TERMINALS, WATERWAYS, context_vessels
+from harbor_simulation.map_catalog import TERMINALS, WATERWAYS
+from harbor_simulation.traffic import HarborTraffic
 
 COLORS = {"LOW": "#43d9b5", "ELEVATED": "#ffc66d", "HIGH": "#ff6b7a", "UNKNOWN": "#a7b5cb"}
 INK = "#e9f3fc"
 MUTED = "#9ab6c9"
+
+
+def map_traffic(context):
+    return context["traffic"] if context and "traffic" in context else HarborTraffic().sample(0)
 
 
 def project(x, y):
@@ -308,6 +313,9 @@ def geographic_map(
     elif selected:
         longitude, latitude, zoom = selected["lon"], selected["lat"], 14.5
     text_style = dict(outline_width=3, outline_color=[9, 30, 48], font_settings={"sdf": True})
+    traffic = map_traffic(context)
+    # pydeck treats bare strings as accessor expressions, even for enum properties.
+    # Literal units/alignment below MUST remain quoted (otherwise paths cover the map).
     layers = [
         pdk.Layer(
             "ScatterplotLayer",
@@ -345,7 +353,7 @@ def geographic_map(
         ),
         pdk.Layer(
             "ScatterplotLayer",
-            context_vessels(),
+            traffic,
             id="context-vessels",
             visible=show_context,
             get_position="[lon, lat]",
@@ -357,12 +365,22 @@ def geographic_map(
         ),
         pdk.Layer(
             "PathLayer",
+            traffic,
+            id="traffic-trails",
+            visible=show_context,
+            get_path="trail",
+            get_color=[83, 155, 208, 140],
+            get_width=2,
+            width_units="'pixels'",
+        ),
+        pdk.Layer(
+            "PathLayer",
             [dict(path=outline, name="Exercise frame · synthetic local metres")],
             id="exercise-boundary",
             get_path="path",
             get_color=[106, 214, 225],
             get_width=2,
-            width_units="pixels",
+            width_units="'pixels'",
             pickable=True,
         ),
         pdk.Layer(
@@ -373,7 +391,7 @@ def geographic_map(
             get_text="label",
             get_size=12,
             get_color=[106, 214, 225],
-            get_text_anchor="start",
+            get_text_anchor="'start'",
             get_pixel_offset=[0, -14],
             **text_style,
         ),
@@ -384,7 +402,7 @@ def geographic_map(
             get_path="path",
             get_color=[128, 168, 203, 150],
             get_width=2,
-            width_units="pixels",
+            width_units="'pixels'",
             pickable=True,
         ),
         pdk.Layer(
@@ -418,7 +436,7 @@ def geographic_map(
             get_path="path",
             get_color="color",
             get_width=3,
-            width_units="pixels",
+            width_units="'pixels'",
             pickable=True,
         ),
         pdk.Layer(
@@ -456,7 +474,7 @@ def geographic_map(
             get_size=13,
             get_color="color",
             get_pixel_offset=[12, -24],
-            get_text_anchor="start",
+            get_text_anchor="'start'",
             **text_style,
         ),
         pdk.Layer(
@@ -488,7 +506,17 @@ def harbor_layout(
     d = Drawing("Long Beach Harbor: all pier areas, waterways and synthetic exercise inset")
     d.rect(24, 88, 1085, 690, "url(#water)", "#284b63", 12)
     d.text(32, 39, "LONG BEACH / HARBOR ATLAS", 26, weight=700)
-    d.text(32, 66, "Public landmarks · illustrative facilities · live synthetic exercise inset", 15, MUTED)
+    traffic = map_traffic(context)
+    phase = "RUNNING" if (context or {}).get("running") else "PAUSED" if context else "PREVIEW"
+    d.text(32, 66, "Public landmarks · generated vessel motion · live engine assessments", 15, MUTED)
+    d.text(
+        1395,
+        39,
+        f"{phase} · t+{(context or {}).get('elapsed', 0)}s · {len(traffic)} surface vessels",
+        16,
+        "#6ad6e1",
+        anchor="end",
+    )
     d.path(
         [
             (70, 155),
@@ -562,15 +590,27 @@ def harbor_layout(
         d.text(960, 241, "LONG BEACH WATERFRONT", 11, MUTED, anchor="middle")
         d.text(193, 570, "TERMINAL ISLAND", 11, MUTED, anchor="middle")
     if show_context:
-        for vessel in context_vessels():
+        for index, vessel in enumerate(traffic):
             x, y = vessel["anchor"]
+            color = "#ffc66d" if vessel["status"] == "HOLDING" else "#539bd0"
+            d.path(vessel["atlas_trail"], color, 1.5)
+            radians = math.radians(vessel["heading"])
+            hull = [
+                (
+                    x + a * math.cos(radians) - b * math.sin(radians),
+                    y + a * math.sin(radians) + b * math.cos(radians),
+                )
+                for a, b in [(-6, -2.5), (4, -2.5), (8, 0), (4, 2.5), (-6, 2.5)]
+            ]
             d.path(
-                [(x - 9, y - 3), (x + 5, y - 3), (x + 11, y), (x + 5, y + 3), (x - 9, y + 3)],
-                "#539bd0",
+                hull,
+                color,
                 1,
                 closed=True,
-                fill="#397eaf",
+                fill=color,
             )
+            if show_labels and index < 6:
+                d.text(x, y - 10, vessel["vessel_id"], 9, color, anchor="middle", halo=True)
     # Clearly labeled inset prevents confusing schematic geometry with geography.
     x0, y0, x1, y1 = snapshot["bounds"]
     ex, ey, ew, eh = 88, 659, 255, 93
@@ -588,12 +628,13 @@ def harbor_layout(
     for zone in snapshot["zones"].values():
         color = zone_color(zone)
         d.path([xy(*v) for v in zone["vertices"]], color, 1, closed=True, fill=color + "30")
-    for track in snapshot["tracks"]:
+    for index, track in enumerate(snapshot["tracks"], 1):
         color = COLORS.get(track["risk"]["current_band"], COLORS["UNKNOWN"])
         if show_forecasts:
             d.path([xy(p["x_m"], p["y_m"]) for p in track["forecast"]["points"]], color, 2, "5 3")
         x, y = xy(track["estimate"]["x_m"], track["estimate"]["y_m"])
-        d.circle(x, y, 4, color, INK)
+        d.circle(x, y, 6, color, INK)
+        d.text(x + 9, y - 6, str(index), 11, color, halo=True)
     if not snapshot["tracks"]:
         d.text(ex + ew / 2, ey + eh / 2 + 4, "Awaiting exercise", 14, MUTED, anchor="middle")
     d.add("</g>")
@@ -605,20 +646,35 @@ def harbor_layout(
         d.circle(1160, y - 5, 11, "#193a4d", t["color"])
         d.text(1160, y - 1, t["code"], 12, t["color"], 700, "middle")
         d.text(1180, y, t["label"] + " / " + t["kind"], 14, t["color"])
-    d.text(1150, 571, "MAP KEY", 14, weight=700)
+    d.text(1150, 571, "LIVE ASSESSMENTS" if snapshot["tracks"] else "MAP KEY", 14, weight=700)
+    for i, track in enumerate(snapshot["tracks"][:3]):
+        color = COLORS.get(track["risk"]["current_band"], COLORS["UNKNOWN"])
+        y = 599 + i * 45
+        d.text(1150, y, f"{i + 1}. {track['track_id']} · {track['risk']['current_band']}", 12, color)
+        d.text(1150, y + 18, words(track["recommendation"]["primary_action"]), 12, MUTED)
     for i, (label, color) in enumerate(
-        [
+        []
+        if snapshot["tracks"]
+        else [
             ("Cargo / container area", "#e8b86d"),
             ("Rail / logistics", "#70d4ce"),
             ("Other port facilities", "#b1a4d8"),
             ("Cruise / waterfront", "#8dc78b"),
-            ("Static fictional vessel", "#539bd0"),
+            ("Generated surface vessel", "#539bd0"),
         ]
     ):
         y = 600 + i * 26
         d.rect(1150, y - 10, 12, 12, color, radius=2)
         d.text(1175, y, label, 13, MUTED)
-    d.text(1150, 747, "11 areas · 8 named waterways", 13, MUTED)
+    d.text(
+        1150,
+        747,
+        f"{len(snapshot['tracks'])} engine tracks · {len(traffic)} surface"
+        if snapshot["tracks"]
+        else "11 areas · 8 named waterways",
+        13,
+        MUTED,
+    )
     d.text(32, 813, "SCHEMATIC · NOT TO SCALE", 13, "#6ad6e1", 600)
     d.text(
         32,
