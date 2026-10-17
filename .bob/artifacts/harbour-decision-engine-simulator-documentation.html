@@ -1,0 +1,505 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Harbour Decision-Engine Simulator — Documentation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1f2328;
+    background: #ffffff;
+    padding: 2rem 1rem;
+  }
+  .page { max-width: 760px; margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .25rem; }
+  h2 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 .6rem; border-bottom: 1px solid #e5e7eb; padding-bottom: .3rem; }
+  h3 { font-size: .95rem; font-weight: 700; margin: 1.2rem 0 .4rem; color: #3b82d4; }
+  p  { margin-bottom: .6rem; }
+  ul, ol { padding-left: 1.4rem; margin-bottom: .6rem; }
+  li { margin-bottom: .2rem; }
+
+  .subtitle { color: #57606a; font-size: .9rem; margin-bottom: 1.5rem; }
+
+  code {
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: .85em;
+    background: #f7f8fa;
+    border: 1px solid #e5e7eb;
+    border-radius: 3px;
+    padding: .1em .35em;
+  }
+  pre {
+    background: #f7f8fa;
+    border: 1px solid #e5e7eb;
+    border-radius: 5px;
+    padding: .9rem 1rem;
+    overflow-x: auto;
+    margin-bottom: .8rem;
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: .82em;
+    line-height: 1.5;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    font-size: .85rem;
+  }
+  th {
+    background: #f7f8fa;
+    border: 1px solid #e5e7eb;
+    padding: .4rem .7rem;
+    text-align: left;
+    font-weight: 600;
+    color: #57606a;
+    white-space: nowrap;
+  }
+  td {
+    border: 1px solid #e5e7eb;
+    padding: .4rem .7rem;
+    vertical-align: top;
+  }
+  tr:hover td { background: #f7f8fa; }
+
+  .badge {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: .1em .45em;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .badge-l1 { background: #dbeafe; color: #1e3a8a; }
+  .badge-l2 { background: #ede9fe; color: #4c1d95; }
+  .badge-l3 { background: #dcfce7; color: #14532d; }
+  .badge-orch { background: #fef9c3; color: #713f12; }
+
+  .note {
+    background: #f7f8fa;
+    border-left: 3px solid #3b82d4;
+    padding: .6rem .9rem;
+    margin-bottom: 1rem;
+    font-size: .88rem;
+    color: #1f2328;
+  }
+  .warn {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    padding: .6rem .9rem;
+    margin-bottom: 1rem;
+    font-size: .88rem;
+  }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .flow-step {
+    background: #f7f8fa;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: .3rem .7rem;
+    font-size: .82rem;
+    font-weight: 600;
+  }
+  .flow-arrow { color: #57606a; font-size: .9rem; }
+
+  .fsm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .fsm-state {
+    border-radius: 20px;
+    padding: .25rem .75rem;
+    font-size: .8rem;
+    font-weight: 600;
+    border: 1px solid #e5e7eb;
+  }
+  .s-watch   { background:#dbeafe; color:#1e3a8a; }
+  .s-verify  { background:#ede9fe; color:#4c1d95; }
+  .s-handoff { background:#fef3c7; color:#92400e; }
+  .s-owned   { background:#dcfce7; color:#14532d; }
+  .s-esc     { background:#fee2e2; color:#7f1d1d; }
+  .s-res     { background:#f0fdf4; color:#166534; }
+
+  footer {
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    font-size: .75rem;
+    color: #57606a;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Harbour Decision-Engine Simulator</h1>
+  <p class="subtitle">Draft/skeleton documentation — generated from <code>docs/decision_engine/structure.md</code> and <code>inference.md</code></p>
+
+  
+  <h2>1. Purpose</h2>
+  <p>
+    This simulator is a prototype implementation of the three-level maritime
+    harbour security architecture. It produces a working, testable codebase
+    against which the <strong>dashboard</strong> and <strong>real sensor
+    adapters</strong> can be developed independently.
+  </p>
+  <div class="note">
+    <strong>Decision boundary:</strong> The engine receives structured observations
+    and records, then returns a versioned <code>DecisionPackage</code> containing
+    estimates, predictions, evidence, uncertainty, and recommended actions.
+  </div>
+
+  
+  <h2>2. Architecture overview</h2>
+
+  <h3>Three levels</h3>
+  <table>
+    <tr><th>Level</th><th>Responsibility</th><th>Key output</th></tr>
+    <tr>
+      <td><span class="badge badge-l1">L1</span> Collect &amp; prepare</td>
+      <td>Decode, validate, normalise, and store sensor observations with full provenance</td>
+      <td>Timestamped, typed <code>Observation</code> records in the event journal</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-l2">L2</span> Assess &amp; recommend</td>
+      <td>Track estimation, trajectory prediction, policy checks, incident FSM, optional AI enrichment, action planning, final verification</td>
+      <td>Versioned <code>DecisionPackage</code> per track update</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-l3">L3</span> Human decision support</td>
+      <td>Format all views for the operator: situation, forecast, authorization, evidence quality, CoA card, handoff package</td>
+      <td><code>CourseOfActionCard</code> + <code>HumanHandoffPackage</code></td>
+    </tr>
+  </table>
+
+  <h3>L2 execution order</h3>
+  <div class="flow">
+    <div class="flow-step">1. KalmanTracker</div><span class="flow-arrow">→</span>
+    <div class="flow-step">2. TrajectoryPredictor</div><span class="flow-arrow">→</span>
+    <div class="flow-step">3. PolicyEngine</div><span class="flow-arrow">→</span>
+    <div class="flow-step">4. IncidentManager (FSM)</div><span class="flow-arrow">→</span>
+    <div class="flow-step">5. ActionPlanner</div><span class="flow-arrow">→</span>
+    <div class="flow-step">6. ActionVerifier</div><span class="flow-arrow">→</span>
+    <div class="flow-step">7. AIBranch (async)</div>
+  </div>
+  <p style="font-size:.85rem;color:#57606a">
+    The numerical and policy path (steps 1–6) runs synchronously and returns
+    a recommendation before the optional AI branch (step 7) completes.
+    A handoff that is already required does not wait for a generated explanation.
+  </p>
+
+  
+  <h2>3. Module reference</h2>
+
+  <h3><span class="badge badge-l1">L1</span> Data models — <code>simulator/data_models/</code></h3>
+  <table>
+    <tr><th>File</th><th>Key types</th><th>Notes</th></tr>
+    <tr>
+      <td><code>observation.py</code></td>
+      <td><code>Observation</code>, <code>Position</code>, <code>BearingRange</code>,<br />
+          <code>MeasurementType</code>, <code>SensorType</code>, <code>ValueOrigin</code></td>
+      <td>An unknown contact carries a <code>track_id</code> while <code>vehicle_id</code> remains <code>None</code></td>
+    </tr>
+    <tr>
+      <td><code>records.py</code></td>
+      <td><code>Mission</code>, <code>Zone</code>, <code>EnvironmentRecord</code>, <code>Report</code>, <code>GeoBound</code></td>
+      <td><code>Zone.contains_point(x,y)</code> uses ray-casting; authoritative and unverified reports stay distinguishable via <code>ReportVerification</code></td>
+    </tr>
+  </table>
+
+  <h3><span class="badge badge-l1">L1</span> Sensor adapters — <code>simulator/sensors/sensors.py</code></h3>
+  <table>
+    <tr><th>Class</th><th>Simulates</th><th>Key behaviour</th></tr>
+    <tr><td><code>SonarSensor</code></td><td>Fixed seabed or ship sonar</td><td>Emits <code>RANGE_BEARING</code> or <code>BEARING_ONLY</code>; does <em>not</em> set <code>vehicle_id</code></td></tr>
+    <tr><td><code>CooperativeTelemetrySensor</code></td><td>AUV/ROV acoustic modem</td><td>Sets <code>vehicle_id</code>; respects <code>report_interval_s</code></td></tr>
+    <tr><td><code>AISSensor</code></td><td>Surface vessel AIS transponder</td><td>Surface context only — not underwater detection</td></tr>
+    <tr><td><code>EnvironmentalSensor</code></td><td>NOAA CO-OPS station</td><td>Sinusoidal current model; real adapter calls the CO-OPS API</td></tr>
+    <tr><td><code>OperatorNoteInjector</code></td><td>Officer free-text entry</td><td>Scheduled by elapsed seconds; text is unverified evidence</td></tr>
+  </table>
+
+  <h3><span class="badge badge-l1">L1</span> Ingestion pipeline — <code>simulator/ingestion/pipeline.py</code></h3>
+  <table>
+    <tr><th>Step</th><th>What happens</th></tr>
+    <tr><td>Decode</td><td>Sensor adapters already produce typed records; a real adapter parses raw bytes here</td></tr>
+    <tr><td>Validate</td><td>Required fields, timestamp sanity (rejects &gt;60 s future), plausible ranges</td></tr>
+    <tr><td>Normalise</td><td>Coordinates converted to harbour frame; bearing-only stays bearing-only</td></tr>
+    <tr><td>Timing</td><td><code>observed_at</code> and <code>received_at</code> stored separately; late messages flagged</td></tr>
+    <tr><td>Provenance</td><td><code>source_id</code>, <code>sensor_type</code>, <code>value_origin</code> preserved from the adapter</td></tr>
+    <tr><td>Deduplicate</td><td>Rejects repeated <code>observation_id</code></td></tr>
+  </table>
+
+  <h3><span class="badge badge-l1">L1</span> Event journal — <code>simulator/journal/journal.py</code></h3>
+  <p>
+    <code>InMemoryJournal</code> — thread-safe, append-only, monotonic sequence numbers,
+    duplicate-safe. <code>replay_all()</code> re-emits all entries flagged
+    <code>is_replay=True</code> for crash recovery without duplicate handoffs.
+    Replace with a durable NATS JetStream consumer for production.
+  </p>
+
+  <h3><span class="badge badge-l2">L2</span> Kalman tracker — <code>simulator/engine/tracker/kalman_tracker.py</code></h3>
+  <table>
+    <tr><th>Detail</th><th>Value</th></tr>
+    <tr><td>State vector</td><td><code>[x, y, depth, vx, vy, vz]</code> (metres, m/s)</td></tr>
+    <tr><td>Motion model</td><td>Constant-velocity; process noise σ = 0.1 m/s²</td></tr>
+    <tr><td>Position update</td><td>Standard linear KF — <code>Position</code> measurements</td></tr>
+    <tr><td>Bearing-only update</td><td>EKF placeholder — inflates covariance until position arrives</td></tr>
+    <tr><td>Production path</td><td>Replace with Stone Soup <code>KalmanPredictor</code> + <code>KalmanUpdater</code></td></tr>
+  </table>
+
+  <h3><span class="badge badge-l2">L2</span> Trajectory predictor — <code>simulator/engine/predictor/trajectory_predictor.py</code></h3>
+  <p>
+    Monte-Carlo rollouts (default 50 samples, 120 s horizon, 5 s steps).
+    Each sample draws an initial state from the track's Gaussian distribution,
+    then advances it under the constant-velocity model with small process noise.
+    Zone intersections are reported as <code>ZoneHit</code> with fraction of
+    samples, earliest hit time, and latest hit time.
+  </p>
+
+  <h3><span class="badge badge-l2">L2</span> Policy engine — <code>simulator/engine/policy/policy_engine.py</code></h3>
+  <table>
+    <tr><th>Rule</th><th>Finding code</th><th>Severity</th></tr>
+    <tr><td>No verified identity</td><td><code>UNKNOWN_IDENTITY</code></td><td>warning</td></tr>
+    <tr><td>Track outside mission permitted area</td><td><code>OUTSIDE_PERMITTED_AREA</code></td><td>alert</td></tr>
+    <tr><td>No active mission for known vehicle</td><td><code>NO_ACTIVE_MISSION</code></td><td>alert</td></tr>
+    <tr><td>Missed check-in</td><td><code>CONTACT_OVERDUE</code></td><td>alert</td></tr>
+    <tr><td>Unauth entry into restricted/prohibited zone</td><td><code>UNAUTHORIZED_ZONE_ENTRY</code></td><td>alert</td></tr>
+  </table>
+  <p style="font-size:.85rem;color:#57606a">
+    A plausible trajectory does not prove vehicle identity. Policy checks identity
+    and mission association independently.
+  </p>
+
+  <h3><span class="badge badge-l2">L2</span> Incident FSM — <code>simulator/engine/incident/incident_fsm.py</code></h3>
+  <div class="fsm">
+    <div class="fsm-state s-watch">WATCHING</div><span class="flow-arrow">→</span>
+    <div class="fsm-state s-verify">VERIFYING</div><span class="flow-arrow">→</span>
+    <div class="fsm-state s-handoff">HANDOFF_PENDING</div><span class="flow-arrow">→</span>
+    <div class="fsm-state s-owned">HUMAN_OWNED</div><span class="flow-arrow">→</span>
+    <div class="fsm-state s-res">RESOLVED</div>
+  </div>
+  <div class="fsm">
+    <div class="fsm-state s-handoff">HANDOFF_PENDING</div><span class="flow-arrow">→</span>
+    <div class="fsm-state s-esc">ESCALATED</div>
+    <span style="font-size:.82rem;color:#57606a"> (deadline exceeded without acknowledgment)</span>
+  </div>
+  <p style="font-size:.85rem;color:#57606a">
+    Invalid transitions are silently ignored — stale or duplicate events cannot
+    corrupt the incident record. Full audit trail in <code>Incident.history</code>.
+  </p>
+
+  <h3><span class="badge badge-l2">L2</span> AI branch — <code>simulator/engine/ai_branch/ai_branch.py</code></h3>
+  <table>
+    <tr><th>Sub-component</th><th>Implementation</th><th>Status</th></tr>
+    <tr><td>Sparse retrieval (BM25)</td><td>Keyword overlap stub</td><td>Replace with real BM25 index</td></tr>
+    <tr><td>Dense retrieval</td><td>Uniform score stub</td><td>Replace with BGE-small-en-v1.5 embeddings</td></tr>
+    <tr><td>Ranking</td><td>Reciprocal Rank Fusion (RRF)</td><td>Structure in place</td></tr>
+    <tr><td>LLM inference</td><td><code>LLMClient.complete()</code> returns stub JSON</td><td>Wire to vLLM OpenAI-compatible endpoint</td></tr>
+    <tr><td>Fast mode</td><td>Non-thinking, short structured output</td><td>Toggle via <code>thinking_mode=False</code></td></tr>
+    <tr><td>Deliberative mode</td><td>Full chain-of-thought</td><td>Toggle via <code>thinking_mode=True</code></td></tr>
+  </table>
+  <div class="warn">
+    All AI proposals re-enter the <code>ActionVerifier</code> gate before reaching
+    the operator. The AI branch never writes directly to the incident record.
+  </div>
+
+  <h3><span class="badge badge-l2">L2</span> Action planner — <code>simulator/engine/planner/action_planner.py</code></h3>
+  <p>Fixed action catalog (no actions outside this list are valid):</p>
+  <table>
+    <tr><th>Action ID</th><th>When selected</th></tr>
+    <tr><td><code>watch</code></td><td>No current concerns</td></tr>
+    <tr><td><code>check_mission</code></td><td>No active mission found; contact overdue</td></tr>
+    <tr><td><code>request_fresh_obs</code></td><td>Position uncertainty &gt; 30 m</td></tr>
+    <tr><td><code>verify_with_operator</code></td><td>Unknown identity; moderate zone hit probability</td></tr>
+    <tr><td><code>handoff_to_officer</code></td><td>Zone hit ≥ 50 % of paths; unauthorized zone entry</td></tr>
+    <tr><td><code>await_acknowledgment</code></td><td>Incident already with human</td></tr>
+    <tr><td><code>no_action_required</code></td><td>Incident resolved</td></tr>
+  </table>
+  <p style="font-size:.85rem;color:#57606a">
+    One-step value-of-information: if gathering evidence could avoid a handoff
+    within the remaining response window, the cheaper information step is
+    selected first.
+  </p>
+
+  <h3><span class="badge badge-l2">L2</span> Action verifier — <code>simulator/engine/verifier/action_verifier.py</code></h3>
+  <ul>
+    <li>Action ID must be in the catalog</li>
+    <li>Track must have been updated within the freshness threshold (default 120 s)</li>
+    <li><code>HANDOFF_TO_OFFICER</code> requires at least one <code>supporting_evidence</code> entry</li>
+    <li><code>VERIFY_WITH_OPERATOR</code> for an already-verified track is downgraded to <code>watch</code></li>
+  </ul>
+
+  <h3><span class="badge badge-l3">L3</span> Decision package — <code>simulator/output/decision_package.py</code></h3>
+  <table>
+    <tr><th>View</th><th>Contents</th></tr>
+    <tr><td><code>SituationView</code></td><td>Position, velocity, depth, identity status, last observation time</td></tr>
+    <tr><td><code>PredictiveView</code></td><td>Forecast horizon, zone hits (fraction, earliest/latest times), uncertainty flag</td></tr>
+    <tr><td><code>AuthorizationView</code></td><td>Verdict, matching mission ID, policy findings list</td></tr>
+    <tr><td><code>EvidenceQuality</code></td><td>Position uncertainty, identity verified, staleness flag and notes</td></tr>
+    <tr><td><code>CourseOfActionCard</code></td><td>Recommendation, reason, supporting evidence, uncertainty, next useful evidence, reassessment trigger, human status</td></tr>
+    <tr><td><code>HumanHandoffPackage</code></td><td>Incident timeline, handoff/ack times, outstanding questions</td></tr>
+  </table>
+
+  <h3><span class="badge badge-orch">Orch</span> Orchestrator — <code>simulator/orchestrator/runner.py</code></h3>
+  <table>
+    <tr><th>Class</th><th>Purpose</th></tr>
+    <tr><td><code>ScenarioConfig</code></td><td>Holds sensors, missions, zones, timing. <code>ScenarioConfig.demo()</code> loads the end-to-end example.</td></tr>
+    <tr><td><code>SimulatorRunner</code></td><td><code>run(steps)</code> for accelerated time; <code>run_realtime(duration_s)</code> for wall-clock. <code>on_package</code> callback per decision.</td></tr>
+    <tr><td><code>FaultPanel</code></td><td>Runtime fault injection — see §5 below.</td></tr>
+  </table>
+
+  
+  <h2>4. Demo scenario</h2>
+  <p>Matches the end-to-end example in <em>structure.md</em>:</p>
+  <table>
+    <tr><th>Entity</th><th>Description</th></tr>
+    <tr><td><code>T-001</code></td><td>Unknown underwater contact; starts at (−200, 0); moves east at 1.2 m/s toward the restricted dock</td></tr>
+    <tr><td><code>AUV-01</code></td><td>Cooperative research AUV; operator note injected at t = 90 s reporting deviation from planned route</td></tr>
+    <tr><td><code>SV-SUPPORT</code></td><td>Surface support vessel (AIS, MMSI 123456789)</td></tr>
+    <tr><td><code>Z-DOCK</code></td><td>Restricted dock zone — polygon (150,100)→(300,100)→(300,250)→(150,250)</td></tr>
+    <tr><td><code>Z-RESEARCH</code></td><td>AUV operating zone (awareness level)</td></tr>
+    <tr><td>Operator notes</td><td>t = 90 s: AUV deviation report; t = 180 s: visual report near dock approach</td></tr>
+  </table>
+
+  <h3>Quick start</h3>
+  <pre>pip install numpy pytest
+
+# Run demo (60 ticks × 5 s = 5 simulated minutes)
+python -m simulator.main
+
+# With fault injection
+python -m simulator.main --fault drop_sonar
+python -m simulator.main --fault disable_ai
+python -m simulator.main --fault clock_jump
+python -m simulator.main --fault event_flood
+python -m simulator.main --fault replay_old_data
+
+# Smoke tests
+pytest simulator/tests/</pre>
+
+  
+  <h2>5. Fault-injection panel</h2>
+  <table>
+    <tr><th>Fault</th><th>API</th><th>Expected behaviour</th><th><em>inference.md</em> scenario</th></tr>
+    <tr>
+      <td>Sensor dropout</td>
+      <td><code>faults.drop_sensor("sonar-01")</code></td>
+      <td>That source produces no observations; uncertainty widens</td>
+      <td>"Disconnect sonar"</td>
+    </tr>
+    <tr>
+      <td>AI disabled</td>
+      <td><code>faults.disable_ai()</code></td>
+      <td>Template explanations; deterministic CPU path continues</td>
+      <td>"Kill the model process"</td>
+    </tr>
+    <tr>
+      <td>Clock jump</td>
+      <td><code>faults.set_clock_jump(7200)</code></td>
+      <td>Pipeline rejects future-timestamped observations</td>
+      <td>"Introduce a clock jump"</td>
+    </tr>
+    <tr>
+      <td>Event flood</td>
+      <td><code>faults.enable_event_flood()</code></td>
+      <td>Duplicate observations rejected by journal deduplication</td>
+      <td>"Flood the system with events"</td>
+    </tr>
+    <tr>
+      <td>Old-data replay</td>
+      <td><code>faults.enable_replay_old_data()</code></td>
+      <td>Backdated observations fail freshness check; classified as historical</td>
+      <td>"Replay old telemetry"</td>
+    </tr>
+  </table>
+
+  
+  <h2>6. Integration TODOs</h2>
+  <table>
+    <tr><th>Component</th><th>Stub location</th><th>Replace with</th></tr>
+    <tr>
+      <td>LLM inference</td>
+      <td><code>ai_branch/ai_branch.py LLMClient.complete()</code></td>
+      <td>vLLM OpenAI-compatible endpoint — IBM Granite 4.2 3B or Qwen3.5 4B</td>
+    </tr>
+    <tr>
+      <td>Sparse retrieval</td>
+      <td><code>HybridRetriever.retrieve()</code></td>
+      <td>Real BM25 index over approved procedure documents</td>
+    </tr>
+    <tr>
+      <td>Dense retrieval</td>
+      <td>Uniform score in <code>HybridRetriever</code></td>
+      <td>BGE-small-en-v1.5 cosine similarity</td>
+    </tr>
+    <tr>
+      <td>EKF bearing-only update</td>
+      <td><code>KalmanTracker._update_bearing()</code></td>
+      <td>Full EKF Jacobian or Stone Soup <code>BearingRangeCartesian2DUpdater</code></td>
+    </tr>
+    <tr>
+      <td>Coordinate projection</td>
+      <td><code>CoordinateNormalizer.normalise()</code></td>
+      <td>pyproj WGS-84 → local ENU</td>
+    </tr>
+    <tr>
+      <td>Durable event journal</td>
+      <td><code>InMemoryJournal</code></td>
+      <td>NATS JetStream consumer with at-least-once delivery</td>
+    </tr>
+    <tr>
+      <td>Anomaly detection</td>
+      <td><em>not yet present</em></td>
+      <td>Isolation Forest on route deviation and speed change features</td>
+    </tr>
+    <tr>
+      <td>Operator dashboard</td>
+      <td><em>not yet present</em></td>
+      <td>Map + evidence panel + acknowledgment workflow (separate UI teammate)</td>
+    </tr>
+  </table>
+
+  
+  <h2>7. Smoke tests</h2>
+  <table>
+    <tr><th>Test</th><th>What it verifies</th></tr>
+    <tr><td><code>test_ingestion_pipeline_accepts_valid_observation</code></td><td>Happy-path ingest</td></tr>
+    <tr><td><code>test_ingestion_pipeline_rejects_future_timestamp</code></td><td>Clock-skew rejection</td></tr>
+    <tr><td><code>test_kalman_tracker_initialises_and_updates</code></td><td>KF converges over 5 steps</td></tr>
+    <tr><td><code>test_policy_engine_flags_unknown_identity</code></td><td>UNKNOWN_IDENTITY finding</td></tr>
+    <tr><td><code>test_incident_fsm_happy_path</code></td><td>FSM advances to HUMAN_OWNED</td></tr>
+    <tr><td><code>test_demo_scenario_runs_without_error</code></td><td>End-to-end: 10 ticks, ≥1 package emitted</td></tr>
+    <tr><td><code>test_fault_drop_sensor</code></td><td>All sensors dropped → zero packages</td></tr>
+  </table>
+  <p style="font-size:.85rem;color:#57606a">All 7 tests pass on Python 3.14 + numpy.</p>
+
+  
+  <h2>8. Key design principles (from structure.md)</h2>
+  <ul>
+    <li><strong>A detection does not establish identity.</strong> <code>vehicle_id</code> is only set when cooperative telemetry or explicit verification confirms it.</li>
+    <li><strong>Bearing-only observations stay bearing-only.</strong> The pipeline never synthesises a full position from a single bearing.</li>
+    <li><strong>Authoritative records and unverified reports are distinguishable.</strong> <code>Report.verification_status</code> and <code>ValueOrigin</code> carry this throughout.</li>
+    <li><strong>The CPU path never waits for AI.</strong> <code>enrich_with_ai()</code> is a separate call; the initial recommendation is already returned.</li>
+    <li><strong>Every AI proposal passes the verifier gate.</strong> Stale, uncited, or catalog-violating proposals are rejected before the operator sees them.</li>
+    <li><strong>Human acknowledgment is tracked explicitly.</strong> A handoff is never silently marked complete; escalation fires on deadline.</li>
+  </ul>
+
+  <footer>Made with IBM Bob</footer>
+</div>
+</body>
+</html>

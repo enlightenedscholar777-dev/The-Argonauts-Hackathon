@@ -1,0 +1,46 @@
+name: Release checks
+on:
+  push:
+    branches: [main, v1-demo]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: python -m pip install -r requirements-space-lock.txt -r requirements-lock.txt
+      - run: python -m pip install --no-deps --no-build-isolation -e .
+      - run: python -m scripts.release_check
+      - run: python -m pytest tests simulator/tests -q
+      - run: python project-website/check_site.py
+      - run: node --check project-website/app.js
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t harbor-maester:ci .
+      - run: docker run -d --name harbor-maester-ci -p 127.0.0.1:7860:7860 harbor-maester:ci
+      - name: Wait for both services
+        run: |
+          python - <<'PY'
+          import subprocess, time
+          for _ in range(60):
+              result = subprocess.run(['docker', 'inspect', '--format', '{{json .State.Health.Status}}', 'harbor-maester-ci'], capture_output=True, text=True)
+              if result.stdout.strip() == '"healthy"':
+                  break
+              time.sleep(2)
+          else:
+              raise SystemExit('Container did not become healthy')
+          PY
+      - if: always()
+        run: docker logs harbor-maester-ci
+      - if: always()
+        run: docker stop harbor-maester-ci

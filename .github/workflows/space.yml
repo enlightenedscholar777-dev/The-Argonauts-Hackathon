@@ -1,0 +1,30 @@
+name: Deploy Hugging Face Space
+on:
+  workflow_dispatch:
+    inputs:
+      space_id:
+        description: 'Existing Docker Space: username/harbor-maester'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: harbor-maester-space
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m scripts.release_check
+      - run: python -m scripts.prepare_space --output runtime/space-upload
+      - run: python -m pip install 'huggingface_hub>=1,<2'
+      - name: Upload public deployment bundle
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_ID: ${{ inputs.space_id }}
+        run: hf upload "$HF_SPACE_ID" runtime/space-upload . --repo-type space

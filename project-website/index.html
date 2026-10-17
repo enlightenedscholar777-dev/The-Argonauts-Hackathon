@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#092536">
+  <meta name="description" content="Harbor-maester is a research prototype for evidence-aware harbor decision support: probabilistic tracking, geometric forecasting, local motion classification, and human review.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Harbor-maester — Evidence before escalation">
+  <meta property="og:description" content="A technical research brief on CPU-first harbor decision support and its synthetic evaluation.">
+  <title>Harbor-maester — Evidence before escalation</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to article</a>
+  <nav class="topbar" aria-label="Primary navigation">
+    <div class="topbar-inner">
+      <a class="brand" href="#top" aria-label="Harbor-maester, back to top">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span>Harbor<span class="brand-dash">-</span>maester</span>
+      </a>
+      <button class="menu-toggle" type="button" aria-controls="nav-links" aria-expanded="false" aria-label="Open navigation">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="#abstract">Abstract</a>
+        <a href="#system">System</a>
+        <a href="#methods">Methods</a>
+        <a href="#experiments">Experiments</a>
+        <a href="#results">Results</a>
+        <a href="#discussion">Discussion</a>
+        <a class="nav-source" href="https://github.com/enlightenedscholar777-dev/The-Argonauts-Hackathon" target="_blank" rel="noopener noreferrer">Source ↗</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <div class="eyebrow eyebrow-light"><span class="eyebrow-rule"></span> Research brief / 01 · The Argonauts</div>
+        <h1>Evidence before <em>escalation.</em></h1>
+        <p class="hero-lede">Harbor-maester studies how a harbor watch can turn uncertain positions, moving traffic and incomplete identity into a timely, explainable recommendation for a human operator.</p>
+        <div class="hero-actions">
+          <a class="button button-accent" href="#abstract">Read the research brief <span aria-hidden="true">↘</span></a>
+          <a class="button button-outline" href="#interface">See the operator view <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="hero-footnote"><span class="live-dot" aria-hidden="true"></span> CPU-first prototype · Synthetic Long Beach exercises · Advisory only</p>
+      </div>
+      <div class="hero-figure">
+        <div class="figure-top"><span>FIG 01 / OBSERVATION FIELD</span><span>LONG BEACH · ILLUSTRATIVE</span></div>
+        <svg class="harbor-drawing" viewBox="0 0 640 560" role="img" aria-labelledby="hero-map-title hero-map-desc">
+          <title id="hero-map-title">Illustrative harbor observation field</title>
+          <desc id="hero-map-desc">Waterway outlines, vessel routes, one forecast track, and a human review marker. This is a conceptual diagram, not a navigation chart.</desc>
+          <defs>
+            <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#255164" stroke-width=".7" opacity=".55"/></pattern>
+            <linearGradient id="sea" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#153e51"/><stop offset="1" stop-color="#0b293a"/></linearGradient>
+            <filter id="dot-glow"><feGaussianBlur stdDeviation="7"/></filter>
+          </defs>
+          <rect width="640" height="560" fill="url(#sea)"/><rect width="640" height="560" fill="url(#map-grid)"/>
+          <path class="land" d="M0 0H640V72L552 81L496 113L454 112L405 156L344 163L292 132L215 142L171 91L79 109L0 96Z"/>
+          <path class="land" d="M0 560V371L69 350L111 382L167 347L214 367L265 340L313 390L343 431L386 444L431 420L479 458L527 445L566 482L640 466V560Z"/>
+          <path class="pier" d="M128 100L177 188L222 180L174 86Z"/><path class="pier" d="M274 140L279 258L305 262L310 157Z"/>
+          <path class="pier" d="M365 158L367 280L394 285L403 155Z"/><path class="pier" d="M474 128L433 292L462 300L505 118Z"/>
+          <path class="pier" d="M88 355L173 246L190 269L113 384Z"/><path class="pier" d="M466 459L508 310L537 317L495 459Z"/>
+          <path class="channel" d="M22 263C96 268 163 292 221 295S335 323 393 337S509 366 624 303"/>
+          <path class="channel channel-secondary" d="M222 295C224 240 232 206 270 180M393 337C415 281 444 238 487 191"/>
+          <path class="route" d="M10 277C112 280 156 303 222 307S364 336 438 351S533 350 611 314"/>
+          <path class="route route-alt" d="M135 292C208 262 226 218 265 184M379 332C416 303 457 255 474 210"/>
+          <path class="forecast" d="M233 304C263 297 290 286 325 271S375 241 404 216"/>
+          <circle cx="242" cy="302" r="25" fill="#91e4de" opacity=".17" filter="url(#dot-glow)"/><circle cx="242" cy="302" r="15" fill="none" stroke="#9ce5df" opacity=".7"/><circle cx="242" cy="302" r="5" fill="#a5f4e8"/>
+          <circle cx="403" cy="218" r="25" fill="#ffbb83" opacity=".18" filter="url(#dot-glow)"/><circle cx="403" cy="218" r="12" fill="none" stroke="#ffc487"/><circle cx="403" cy="218" r="4" fill="#ffc487"/>
+          <circle cx="102" cy="282" r="4" fill="#8bd6ea"/><circle cx="484" cy="355" r="4" fill="#8bd6ea"/><circle cx="556" cy="337" r="4" fill="#8bd6ea"/>
+          <g class="map-label"><text x="25" y="208">WEST BASIN</text><text x="357" y="103">INNER HARBOR</text><text x="451" y="409">OUTER HARBOR</text><text x="260" y="289">TRACK 01</text><text x="416" y="214">ZONE ENTRY</text></g>
+          <path d="M442 178h112v44H442z" fill="#133c4d" stroke="#547889"/><text x="454" y="197" class="map-pill">HUMAN REVIEW</text><text x="454" y="213" class="map-pill map-pill-small">forecast / conditional</text>
+          <text x="25" y="530" class="map-coordinate">33°45′ N  /  118°13′ W</text><text x="511" y="530" class="map-coordinate">SYNTHETIC</text>
+        </svg>
+        <div class="figure-bottom"><span class="legend-dot legend-cyan"></span> Vessel route <span class="legend-dot legend-teal"></span> Estimated contact <span class="legend-dot legend-orange"></span> Projected zone entry</div>
+      </div>
+    </div>
+    <div class="hero-measures" aria-label="Prototype scope and synthetic results">
+      <div><strong>15<span>s</span></strong><span>warning lead in one synthetic approach case<sup><a href="#ref-internal">[1]</a></sup></span></div>
+      <div><strong>8</strong><span>mapped Long Beach exercise areas</span></div>
+      <div><strong>93</strong><span>passing engine, simulator and dashboard tests<sup><a href="#ref-internal">[1]</a></sup></span></div>
+      <div><strong>CPU</strong><span>core recommendations remain available offline</span></div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section paper-opening" id="abstract" aria-labelledby="abstract-title">
+      <div class="wrap paper-grid">
+        <aside class="paper-margin"><span class="margin-index">01 / RESEARCH QUESTION</span><span class="margin-line"></span><span>Domain<br>Harbor operations</span><span>Setting<br>Long Beach, CA</span><span>Artifact<br>Decision support prototype</span><span>Evidence<br>Synthetic exercises</span></aside>
+        <div class="paper-body">
+          <p class="kicker">Abstract</p>
+          <h2 id="abstract-title">A decision system for the interval between observation and response.</h2>
+          <p class="abstract-lead">A harbor threat rarely arrives as a complete story. Positions are noisy, identifiers may be unconfirmed, vessel schedules compete for space, and sensor reports can stop. Harbor-maester investigates a bounded decision loop that turns those partial observations into auditable recommendations.</p>
+          <p>Our prototype combines a four-state Kalman tracker, uncertainty-aware zone forecasts, geometric route and encounter checks, exact mission permissions, and a separate local classifier for small-object motion. The primary action is chosen by explicit policy. A human operator receives the evidence, data-quality state and next step; optional language-model output may explain that decision but cannot change it.</p>
+          <p>In synthetic Long Beach exercises, a seeded approach case produced high concern 15 scenario seconds before estimated zone entry. A distinct synthetic motion dataset yielded 96.5% held-out behavior-class accuracy. These results establish repeatable software behavior, not field detection accuracy, responder speed, or lives saved.</p>
+          <div class="keywords"><strong>Keywords</strong><span>Maritime situational awareness</span><span>Uncertainty propagation</span><span>Human decision support</span><span>Temporal classification</span><span>Graceful degradation</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section problem-section" id="question" aria-labelledby="question-title">
+      <div class="wrap">
+        <div class="section-head"><p class="kicker">02 / Problem formulation</p><h2 id="question-title">Detect. Warn. Preserve human authority.</h2><p>We frame the operator’s job as three connected questions, each answer backed by an observation time, uncertainty and source.</p></div>
+        <div class="question-grid">
+          <article class="question-card"><span class="card-number">Q1</span><h3>What is changing?</h3><p>Estimate contact state and data quality from time-stamped positions. Track surface encounters, route deviation, berth delay and unusual small-object motion without assuming that every unknown is hostile.</p><span class="card-footer">Detection / state estimation</span></article>
+          <article class="question-card"><span class="card-number">Q2</span><h3>What may happen next?</h3><p>Project conditional zone entry and closest approach. Keep the forecast’s age, covariance and assumptions visible so a watch officer can distinguish a measured position from a model projection.</p><span class="card-footer">Forecast / evidence quality</span></article>
+          <article class="question-card"><span class="card-number">Q3</span><h3>Who decides the response?</h3><p>Rank a bounded set of actions: monitor, verify permission, request fresh observations, contact an operator or initiate human review. Acknowledgment is recorded; the system does not steer vessels.</p><span class="card-footer">Policy / human handoff</span></article>
+        </div>
+        <div class="scope-line"><span class="scope-icon" aria-hidden="true">↗</span><p><strong>Dual use by design.</strong> The same loop watches ordinary traffic and research missions, then remains useful when a disruption, sensor outage or port threat changes the operating picture. Wildfire and flood detection are future inputs, not current sensors.</p></div>
+      </div>
+    </section>
+
+    <section class="section system-section" id="system" aria-labelledby="system-title">
+      <div class="wrap">
+        <div class="section-head section-head-dark"><p class="kicker">03 / System architecture</p><h2 id="system-title">One committed assessment. Several independent forms of evidence.</h2><p>The architecture separates simulation, numerical inference, policy and optional explanation. This makes the critical recommendation usable without a cloud model.</p></div>
+        <div class="system-diagram" role="img" aria-label="Synthetic sensors feed authenticated API events to a single coordinator. The coordinator runs tracking, forecasting and policy, commits results to SQLite, and publishes a dashboard snapshot. A separate motion classifier and optional language model add advisory context.">
+          <div class="diagram-column"><span class="diagram-label">INPUTS</span><div class="diagram-node"><span>01 / Positions</span><strong>Pako sonar + telemetry</strong><small>Bearing and range become local metres</small></div><div class="diagram-node"><span>02 / Harbor activity</span><strong>Scheduled vessel reports</strong><small>Routes, speed, delay and berth state</small></div><div class="diagram-node"><span>03 / Objects</span><strong>Small-object tracks</strong><small>Area, position and uncertainty</small></div></div>
+          <div class="diagram-arrow" aria-hidden="true">→</div>
+          <div class="diagram-column"><span class="diagram-label">BOUNDARY</span><div class="diagram-node diagram-node-accent"><span>04 / Contract</span><strong>Authenticated API</strong><small>Schema, time, source and idempotency checks</small></div></div>
+          <div class="diagram-arrow" aria-hidden="true">→</div>
+          <div class="diagram-column diagram-wide"><span class="diagram-label">DETERMINISTIC CORE</span><div class="diagram-node diagram-node-accent"><span>05 / Single mutation owner</span><strong>Estimate → forecast → policy</strong><small>Kalman + zone geometry + mission registry + surface CPA</small></div><div class="diagram-node"><span>06 / Advisory model</span><strong>Motion forest</strong><small>48 local trees; cannot set permission or risk</small></div></div>
+          <div class="diagram-arrow" aria-hidden="true">→</div>
+          <div class="diagram-column"><span class="diagram-label">OUTCOMES</span><div class="diagram-node"><span>07 / Durable record</span><strong>SQLite journal</strong><small>Commit before publication</small></div><div class="diagram-node diagram-node-accent"><span>08 / Human interface</span><strong>Harbor-maester</strong><small>Reason, uncertainty, review and audit</small></div><div class="diagram-node"><span>Optional / Asynchronous</span><strong>Groq explanation</strong><small>Validated against committed evidence</small></div></div>
+        </div>
+        <div class="system-notes"><p><span>Invariant A</span> One coordinator orders state changes, commits to SQLite and then publishes a snapshot.</p><p><span>Invariant B</span> Missing or stale observations change capability and may suppress forecasts.</p><p><span>Invariant C</span> The language model cannot set the primary action, identity, permission or risk band.</p></div>
+      </div>
+    </section>
+
+    <section class="section method-section" id="methods" aria-labelledby="methods-title">
+      <div class="wrap">
+        <div class="section-head"><p class="kicker">04 / Methods</p><h2 id="methods-title">From noisy coordinates to a bounded recommendation.</h2><p>Each method answers a narrower question than “what is the threat?” The combination creates an explanation an operator can inspect.</p></div>
+        <div class="method-grid">
+          <article class="method-card"><div class="method-label"><span>01</span><span>STATE ESTIMATION</span></div><h3>Track motion and uncertainty</h3><p>A constant-velocity state keeps position and velocity together. Measurement noise and a Mahalanobis innovation gate handle uncertain sonar positions; the Joseph update keeps covariance numerically sound.</p><div class="equation" aria-label="State vector x equals x, y, velocity x, velocity y. Predicted covariance equals F P F transpose plus Q."><span class="eq-symbol">x</span><sub>t</sub> = [x, y, v<sub>x</sub>, v<sub>y</sub>]<sup>⊤</sup><br>P<sup>−</sup><sub>t</sub> = F<sub>Δ</sub>P<sub>t−1</sub>F<sub>Δ</sub><sup>⊤</sup> + Q<sub>Δ</sub></div><p class="method-annotation">Innovation gate: d² = ν<sup>⊤</sup>S<sup>−1</sup>ν. Rejected outliers remain visible as a data-quality conflict.</p></article>
+          <article class="method-card"><div class="method-label"><span>02</span><span>CONDITIONAL FORECASTING</span></div><h3>Project a possible zone entry</h3><p>The engine propagates the state and covariance over a short horizon, checks where the mean path intersects configured polygons and samples 32 possible paths around the estimate.</p><div class="equation" aria-label="Entry time is the earliest future time when the forecast path intersects a zone.">T<sub>Z</sub> = min { τ ≥ 0 : μ(τ) ∈ Z }</div><p class="method-annotation">The sampled zone-hit fraction is uncalibrated. It is a scenario indicator, not a validated collision or threat probability.</p></article>
+          <article class="method-card"><div class="method-label"><span>03</span><span>TRAFFIC GEOMETRY</span></div><h3>Make harbor traffic actionable</h3><p>Every visible scheduled vessel receives a separate CPU assessment: relative-velocity closest point of approach, distance from its planned route and arrival delay. Stale reports suppress encounter predictions.</p><div class="equation" aria-label="Closest approach time is the clipped negative dot product of relative position and relative velocity divided by squared relative speed.">t* = clip(−r · v / ‖v‖², 0, 120 s)</div><p class="method-annotation">The current 120 m encounter, 140 m route and 30 s delay thresholds are illustrative demo assumptions.</p></article>
+          <article class="method-card"><div class="method-label"><span>04</span><span>TEMPORAL CLASSIFICATION</span></div><h3>Characterize movement, not material</h3><p>A local 48-tree random forest uses speed, turn, straightness, acceleration and pauses from a 30–62 second position window. It can propose drift-like or swimming-like behavior and abstains when input is stale or ambiguous.</p><div class="equation" aria-label="Behavior score is the average class output across 48 trees.">s<sub>c</sub> = (1 / 48) Σ<sub>j=1</sub><sup>48</sup> tree<sub>j,c</sub>(ϕ(track))</div><p class="method-annotation">The scores are uncalibrated and trained on synthetic motion. A garbage bag, vegetation and an unpowered object may share a trajectory.</p></article>
+        </div>
+        <div class="method-bottom"><span>POLICY LAYER</span><p>Freshness, mission binding, zone permissions, route-deviation hysteresis and evidence rules turn these estimates into one of five next actions. A contact with unconfirmed identity is not automatically labeled high risk.</p></div>
+      </div>
+    </section>
+
+    <section class="section experiment-section" id="experiments" aria-labelledby="experiments-title">
+      <div class="wrap">
+        <div class="section-head"><p class="kicker">05 / Synthetic cases</p><h2 id="experiments-title">Watch how a recommendation changes.</h2><p>Choose a recorded test case below. The timeline is an illustration of verified scenario outputs, not a live feed from the decision engine.</p></div>
+        <div class="case-shell">
+          <div class="case-tabs" role="group" aria-label="Choose a synthetic case">
+            <button class="case-tab is-active" type="button" data-case="approach" aria-pressed="true"><span>01</span> Zone approach</button>
+            <button class="case-tab" type="button" data-case="outage" aria-pressed="false"><span>02</span> Sensor outage</button>
+            <button class="case-tab" type="button" data-case="motion" aria-pressed="false"><span>03</span> Small-object motion</button>
+          </div>
+          <div class="case-body" aria-live="polite">
+            <div class="case-top"><div><p class="case-type" id="case-type">FORECAST / ZONE POLICY</p><h3 id="case-title">An unverified contact approaches a restricted zone.</h3></div><div class="case-clock"><strong id="case-number">15 s</strong><span id="case-number-label">synthetic warning lead</span></div></div>
+            <p class="case-description" id="case-description">High concern appeared at scenario second 36. The estimated mean path reached the demo zone at second 51; the operator was shown a human-review recommendation before that modeled entry.</p>
+            <div class="timeline" aria-hidden="true"><div class="timeline-track"><div class="timeline-fill" id="timeline-fill"></div><div class="timeline-marker marker-a" id="marker-a"><span id="marker-a-time">36 s</span></div><div class="timeline-marker marker-b" id="marker-b"><span id="marker-b-time">51 s</span></div></div><div class="timeline-labels"><span id="timeline-start">First high concern</span><span id="timeline-end">Estimated zone entry</span></div></div>
+            <div class="case-evidence"><div><span>OBSERVATION</span><p id="case-observation">Noisy range and bearing reports establish a moving track.</p></div><div><span>INFERENCE</span><p id="case-inference">A fresh forecast intersects a restricted polygon.</p></div><div><span>RECOMMENDATION</span><p id="case-action">Request a human review and verify operating permission.</p></div></div>
+            <p class="case-caption" id="case-caption">Source: repeatable in-process synthetic evaluation. These seconds are scenario time, not measured responder time.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section interface-section" id="interface" aria-labelledby="interface-title">
+      <div class="wrap">
+        <div class="section-head"><p class="kicker">06 / Human interface</p><h2 id="interface-title">The operator sees the reason and the next step.</h2><p>The dashboard turns assessment records into an overview, contact review, surface traffic watch, simulation control, audit trail and small-object detection view.</p></div>
+        <div class="interface-layout"><figure class="product-frame"><img src="assets/operator-overview.png" width="1600" height="1100" loading="lazy" alt="Harbor-maester operator overview showing a priority contact, suggested verification, surface traffic watch and harbor atlas"><figcaption>Fig. 02 / Actual running Streamlit overview, captured during a synthetic harbor-wide exercise.</figcaption></figure><div class="interface-aside"><div class="interface-point"><span>01 / Situation</span><h3>What needs attention?</h3><p>A priority contact or traffic advisory is promoted with the evidence quality and review state alongside it.</p></div><div class="interface-point"><span>02 / Evidence</span><h3>Why did it change?</h3><p>Track age, forecast, reason codes, mission status and incident history remain inspectable.</p></div><div class="interface-point"><span>03 / Action</span><h3>What should a person do?</h3><p>The system suggests a bounded next step. The operator acknowledges a human handoff; the software does not dispatch or navigate.</p></div></div></div>
+        <div class="interface-detail"><div class="detail-copy"><p class="kicker">A second, separate inference stream</p><h3>Small objects across the harbor.</h3><p>Thirty-two synthetic object tracks can be observed across eight mapped Long Beach areas. After enough motion history, the Detection page presents behavioral hypotheses, feature evidence and a verification suggestion. Material remains unknown until a suitable sensor confirms it.</p><ul><li>2-second measurement cadence</li><li>At least 30 seconds before a hypothesis</li><li>Withholds inference on stale or uncertain data</li></ul></div><figure class="product-frame product-frame-detail"><img src="assets/detection-map.png" width="1600" height="1100" loading="lazy" alt="Detection view with drift-like movement evidence and purple object observations on the Long Beach geographic map"><figcaption>Fig. 03 / Actual Detection view. The screenshot shows model scores and harbor markers from a synthetic exercise.</figcaption></figure></div>
+      </div>
+    </section>
+
+    <section class="section results-section" id="results" aria-labelledby="results-title">
+      <div class="wrap">
+        <div class="section-head section-head-dark"><p class="kicker">07 / Evaluation</p><h2 id="results-title">Measured in simulation. Open about the boundary.</h2><p>Our current evidence is reproducible software and synthetic-case behavior. Field performance and responder impact are research questions still to be answered.</p></div>
+        <div class="results-grid">
+          <div class="result-card"><span class="result-id">R1 / FORECAST LEAD</span><strong>15 <small>seconds</small></strong><p>High concern at t = 36 s; estimated zone entry at t = 51 s in one seeded harbor-approach scenario.</p><span class="result-source">One synthetic case · conditional forecast</span></div>
+          <div class="result-card"><span class="result-id">R2 / DATA LOSS</span><strong>13 / 20 <small>s</small></strong><p>After sonar stops at t = 10 s, the existing report becomes stale at 13 s and lost at 20 s.</p><span class="result-source">Synthetic outage · last position at t = 9 s</span></div>
+          <div class="result-card"><span class="result-id">R3 / MOTION MODEL</span><strong>96.5<small>%</small></strong><p>Behavior-class accuracy on 800 held-out synthetic trajectories; 97% of cases received a hypothesis under the abstention rule.</p><span class="result-source">2,000 synthetic training trajectories · four classes</span></div>
+          <div class="result-card"><span class="result-id">R4 / SYSTEM CHECK</span><strong>93 <small>tests</small></strong><p>Engine, simulator, API and dashboard checks passed; browser checks covered live maps, review and detection.</p><span class="result-source">Automated test suite · local Edge verification</span></div>
+        </div>
+        <div class="result-footnote"><span aria-hidden="true">*</span><p>The 96.5% figure is not real-world debris or fish identification accuracy. The training and test trajectories were generated by the same hand-designed motion simulator. In the held-out set, 24 of 200 directed trajectories were confused with drift. No claim about lives saved, reduction in response time, or operational readiness follows from these results.</p></div>
+      </div>
+    </section>
+
+    <section class="section discussion-section" id="discussion" aria-labelledby="discussion-title">
+      <div class="wrap discussion-grid"><div><p class="kicker">08 / Discussion & next studies</p><h2 id="discussion-title">The honest next experiment is in the field.</h2><p class="discussion-lead">The core research claim is that an operator can receive a timely, inspectable recommendation while the system degrades clearly when evidence weakens. The prototype demonstrates that behavior in a synthetic environment. Deployment requires a different standard of evidence.</p></div><div class="research-agenda"><article><span>01 / SENSOR VALIDITY</span><h3>Connect real observations</h3><p>Use licensed harbor feeds and time-stamped sonar or camera tracks with provenance, coverage gaps and measured error. Add current, size and imagery before pursuing material or species identification.</p></article><article><span>02 / MODEL VALIDATION</span><h3>Calibrate and compare</h3><p>Evaluate forecast reliability, missed events and false alerts per watch-hour on held-out vessels, days and ports. Compare movement classifiers against a simple drift baseline and test ambiguous cases.</p></article><article><span>03 / HUMAN OUTCOMES</span><h3>Study responder decisions</h3><p>Run tabletop trials against the existing workflow. Measure detection-to-acknowledgment time, correct next-action selection and workload. Only then estimate safety impact.</p></article></div></div>
+      <div class="wrap status-matrix"><div><span>DEMONSTRATED</span><p>Synthetic reports → numerical assessment → recommendation → durable human acknowledgment; CPU fallback and local motion classification.</p></div><div><span>UNDER INVESTIGATION</span><p>Real sensor integration, threshold calibration, image recognition, field validation, responder workflow and deployment hardening.</p></div></div>
+    </section>
+
+    <section class="section references-section" id="references" aria-labelledby="references-title"><div class="wrap references-grid"><div><p class="kicker">09 / References & reproducibility</p><h2 id="references-title">Every number has a source.</h2><p>This site is a static research narrative. The interactive case above reproduces recorded values; it does not call the engine. The local demo, evaluation scripts and model artifact live in the repository.</p><a class="button button-dark" href="https://github.com/enlightenedscholar777-dev/The-Argonauts-Hackathon" target="_blank" rel="noopener noreferrer">Explore the repository <span aria-hidden="true">↗</span></a></div><ol class="reference-list"><li id="ref-internal"><span>[1] Internal evaluation</span><a href="https://github.com/enlightenedscholar777-dev/The-Argonauts-Hackathon/blob/v1-demo/docs/CAPABILITY_AUDIT.md" target="_blank" rel="noopener noreferrer">Capability audit, scenario protocol and reproducible results ↗</a></li><li><span>[2] Motion artifact</span><a href="https://github.com/enlightenedscholar777-dev/The-Argonauts-Hackathon/blob/v1-demo/docs/MOTION_DETECTION.md" target="_blank" rel="noopener noreferrer">Motion model card, split and limitations ↗</a></li><li><span>[3] Research context</span><a href="https://arxiv.org/abs/1302.2277" target="_blank" rel="noopener noreferrer">Deng et al. (2013), A Time Series Forest for Classification and Feature Extraction ↗</a></li><li><span>[4] Visual debris data</span><a href="https://arxiv.org/abs/2007.08097" target="_blank" rel="noopener noreferrer">Hong et al. (2020), TrashCan: A Semantically-Segmented Dataset towards Visual Detection of Marine Debris ↗</a></li></ol></div></section>
+  </main>
+  <footer class="footer"><div class="wrap footer-inner"><div><a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>Harbor<span class="brand-dash">-</span>maester</span></a><p>A research prototype by The Argonauts for the Preparing for Disaster hackathon.</p><p class="footer-team">Built by <a href="https://www.linkedin.com/in/siddharth-magesh/" target="_blank" rel="noopener noreferrer">Siddharth Magesh</a>, <a href="https://www.linkedin.com/in/snigdha-bolisetty/" target="_blank" rel="noopener noreferrer">Snigdha Bolisetty</a> and <a href="https://www.linkedin.com/in/francisco-anaya-esquivel-23664036b/" target="_blank" rel="noopener noreferrer">Francisco Anaya Esquivel</a>.</p></div><div class="footer-right"><span>Long Beach, California · Synthetic exercises</span><a href="#top">Back to top ↑</a></div></div></footer>
+</body>
+</html>

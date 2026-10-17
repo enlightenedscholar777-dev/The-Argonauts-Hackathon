@@ -1,0 +1,148 @@
+{
+  "synthetic_data": true,
+  "ai_provider": "off",
+  "python": "3.12.10",
+  "os": "Windows-11-10.0.26300-SP0",
+  "cpu": "Intel64 Family 6 Model 197 Stepping 2, GenuineIntel",
+  "logical_cpus": 16,
+  "memory_observation": {
+    "source": "PowerShell Get-Process sampled after the recorded workload",
+    "server_working_set_bytes": 101826560,
+    "server_process_peak_working_set_bytes": 124739584,
+    "scope": "server process lifetime; not an isolated long-duration leak study"
+  },
+  "normal": {
+    "requested_duration_seconds": 60,
+    "actual_seconds": 59.96899999999732,
+    "requested_observations_per_second": 20,
+    "attempted_requests": 1200,
+    "client_concurrency_limit": 320,
+    "client_pending_limit": 512,
+    "http_ingest_ms": {
+      "p50": 19.213450003007893,
+      "p95": 121.14771500637288,
+      "p99": 191.95567199596553,
+      "max": 231.16850000224076
+    },
+    "outcomes": {
+      "APPLIED": 1200
+    },
+    "server_metrics": {
+      "schema_version": "1.0",
+      "counters": {
+        "committed_commands": 1261,
+        "APPLIED": 1200
+      },
+      "queue_depth": 0,
+      "latencies": {
+        "core_ms": {
+          "count": 2391,
+          "p50": 1.4670999953523278,
+          "p95": 6.052800003089942,
+          "max": 25.474199996097013
+        },
+        "queue_ms": {
+          "count": 1260,
+          "p50": 0.0,
+          "p95": 47.00000000593718,
+          "max": 93.99999999732245
+        },
+        "tick_lag_ms": {
+          "count": 60,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0
+        },
+        "http_ms": {
+          "count": 1201,
+          "p50": 16.642500006128103,
+          "p95": 86.28899999894202,
+          "max": 225.1350000005914
+        }
+      },
+      "ai": {
+        "status": "OFF",
+        "provider": "off",
+        "mock": false,
+        "pending": 0,
+        "counters": {
+          "attempted": 0,
+          "accepted": 0,
+          "rejected": 0,
+          "dropped": 0,
+          "coalesced": 0
+        },
+        "cooldown_seconds": 0,
+        "last_latency_ms": null
+      }
+    }
+  },
+  "burst": {
+    "requested_duration_seconds": 5,
+    "actual_seconds": 8.062000000005355,
+    "requested_observations_per_second": 200,
+    "attempted_requests": 1000,
+    "client_concurrency_limit": 320,
+    "client_pending_limit": 512,
+    "http_ingest_ms": {
+      "p50": 91.14684999804012,
+      "p95": 4866.548639999382,
+      "p99": 5009.4716330039955,
+      "max": 5046.375599995372
+    },
+    "outcomes": {
+      "APPLIED": 396,
+      "QUEUE_FULL": 604
+    },
+    "server_metrics": {
+      "schema_version": "1.0",
+      "counters": {
+        "committed_commands": 1661,
+        "APPLIED": 1596,
+        "QUEUE_FULL": 604
+      },
+      "queue_depth": 0,
+      "latencies": {
+        "core_ms": {
+          "count": 456,
+          "p50": 0.3564500075299293,
+          "p95": 5.3755250009999145,
+          "max": 8.416500000748783
+        },
+        "queue_ms": {
+          "count": 399,
+          "p50": 4297.000000005937,
+          "p95": 4937.000000005355,
+          "max": 5016.00000000326
+        },
+        "tick_lag_ms": {
+          "count": 3,
+          "p50": 1406.0000000026776,
+          "p95": 2938.699999997334,
+          "max": 3108.9999999967404
+        },
+        "http_ms": {
+          "count": 1001,
+          "p50": 48.54299999715295,
+          "p95": 4846.591300010914,
+          "max": 5036.531899997499
+        }
+      },
+      "ai": {
+        "status": "OFF",
+        "provider": "off",
+        "mock": false,
+        "pending": 0,
+        "counters": {
+          "attempted": 0,
+          "accepted": 0,
+          "rejected": 0,
+          "dropped": 0,
+          "coalesced": 0
+        },
+        "cooldown_seconds": 0,
+        "last_latency_ms": null
+      }
+    }
+  }
+}

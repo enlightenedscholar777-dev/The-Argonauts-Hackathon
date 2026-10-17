@@ -1,0 +1,4 @@
+# UI dependencies; install the engine with .[demo] from the repository root.
+streamlit>=1.66,<2
+pandas>=2.2,<3
+pydeck>=0.9,<1
