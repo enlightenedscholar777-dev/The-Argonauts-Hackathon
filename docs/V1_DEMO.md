@@ -60,7 +60,15 @@ After restarting, a recovered active session is displayed without automatically 
 5. Press **Lose sonar coverage**, then resume or step 12 times. Position evidence becomes stale and then `LOST`, even though telemetry continues. Restore sonar to recover fresh positions.
 6. Stop the exercise explicitly. Start **Research route deviation** to show that confirmed identity does not exempt a vehicle from route constraints; its turn begins after 15 seconds.
 
-Automatic playback advances one scenario second per completed step, paced at roughly one step per wall second. Pause freezes the scenario clock, including freshness; it does not simulate sensor loss. Each exercise pauses at 90 scenario seconds for inspection. The offline local map is the default. The optional Long Beach basemap needs internet and uses an explicitly illustrative projection; it has no effect on decisions.
+Automatic playback advances one scenario second per completed step, paced at roughly one step per wall second. Pause freezes the scenario clock, including freshness; it does not simulate sensor loss. Each exercise pauses at 90 scenario seconds for inspection.
+
+The original Long Beach harbor overview is shown by default, including the four facility anchors and 22 fictional context vessels. It appears even before an exercise starts. Live engine estimates and forecasts overlay the harbor and also appear in a separate local exercise detail map. **Map view → Exercise area** zooms the online map to that activity. The online tiles require internet; turn off **Show online Long Beach basemap** for a self-contained harbor schematic. The detail map always works offline. Public facility anchors, the schematic shoreline and geographic placement are illustrative and have no effect on decisions. Blue context vessels are not counted as engine tracks.
+
+### Blank-map regression fix
+
+The initial integration passed its SVG directly to `st.html`. Streamlit 1.66 sanitizes that content with an HTML-only profile, removing SVG elements in the browser. The initial page also returned before drawing maps when no session existed, and the original basemap was hidden behind an unchecked toggle. Both SVG views now use `st.image` data images, the original harbor context is restored as the default, and maps render before startup and during API outages. During an outage only static context remains; old live tracks are cleared. Regression tests inspect the actual image data URLs and serialized map layers, not just the generated SVG string. Standalone rendered images were visually inspected as well.
+
+After updating the code, restart the launcher once (Ctrl+C, then the same launch command) and refresh the page. The presentation launcher deliberately disables file watching, so an already-running dashboard does not load source edits automatically.
 
 ## AI modes
 

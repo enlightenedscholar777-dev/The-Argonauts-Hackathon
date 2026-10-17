@@ -1,10 +1,13 @@
 """Exercise Streamlit widgets against an actual Uvicorn process over loopback HTTP."""
 
+import base64
+import json
 import os
 import socket
 import subprocess
 import sys
 import time
+import xml.etree.ElementTree as ET
 
 import httpx
 import pytest
@@ -97,6 +100,23 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
     try:
         app = AppTest.from_file("../harbor_simulation/app.py", default_timeout=20).run()
         assert not app.exception
+        # Regression: the harbor must appear before any session exists. Maps
+        # sent via st.html used to be silently removed by its HTML-only sanitizer.
+        assert app.checkbox(key="online_map").value
+        deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
+        layers = {layer["id"]: layer for layer in deck["layers"]}
+        assert len(layers["harbor-terminals"]["data"]) == 4
+        assert len(layers["context-vessels"]["data"]) == 22
+        assert not layers["engine-tracks"]["data"]
+        assert len(app.image) == 1
+        app.checkbox(key="online_map").uncheck().run()
+        assert not app.exception
+        assert len(app.image) == 2
+        for element in app.image:
+            assert element.value[0].startswith("data:image/svg+xml;base64,")
+            svg = base64.b64decode(element.value[0].split(",", 1)[1]).decode()
+            assert ET.fromstring(svg).tag.endswith("svg")
+        assert "Pier T" in base64.b64decode(app.image[0].value[0].split(",", 1)[1]).decode()
         app.checkbox(key="autoplay").uncheck().run()
         app.button(key="start").click().run()
         assert not app.exception
@@ -104,6 +124,11 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         sid = api.status()["active_session_id"]
         assert sid
         assert len(api.snapshot(sid)["tracks"]) == 2
+        assert "unknown_01" in base64.b64decode(app.image[1].value[0].split(",", 1)[1]).decode()
+        app.checkbox(key="online_map").check().run()
+        deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
+        layers = {layer["id"]: layer for layer in deck["layers"]}
+        assert len(layers["engine-tracks"]["data"]) == 2
         app.button(key="step").click().run()
         demo = controllers[0]
         assert demo.view()["elapsed"] == 1
@@ -112,6 +137,8 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         app.run()
         assert not app.exception
         assert any("unknown_01 · HIGH" in element.value for element in app.subheader)
+        deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
+        assert next(layer for layer in deck["layers"] if layer["id"] == "engine-forecasts")["data"]
         mode = api.settings.ai_provider
         expected_ai = (
             "off / OFF" if mode == "off" else "groq / MISCONFIGURED" if mode == "groq" else "fake / MOCK"
@@ -157,6 +184,11 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
         assert not app.exception
         assert app.error
         assert not app.metric
+        deck = json.loads(app.get("deck_gl_json_chart")[0].proto.json)
+        layers = {layer["id"]: layer for layer in deck["layers"]}
+        assert len(layers["harbor-terminals"]["data"]) == 4
+        assert not layers["engine-tracks"]["data"]
+        assert "unknown_01" not in base64.b64decode(app.image[0].value[0].split(",", 1)[1]).decode()
     finally:
         for demo in controllers:
             demo.close()

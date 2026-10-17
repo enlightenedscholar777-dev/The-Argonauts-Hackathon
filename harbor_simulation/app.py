@@ -9,7 +9,7 @@ import streamlit as st
 
 from harbor_engine.settings import Settings
 from harbor_simulation.integration import SCENARIOS, DemoController, DemoError, EngineAPI
-from harbor_simulation.views import geographic_map, local_map
+from harbor_simulation.views import TERMINALS, empty_map, geographic_map, harbor_layout, local_map
 
 st.set_page_config(page_title="Harbor Watch | Live demo", page_icon="⚓", layout="wide")
 st.markdown(
@@ -73,10 +73,59 @@ with st.sidebar:
     )
     st.divider()
     st.subheader("Map")
-    online_map = st.checkbox("Show online Long Beach basemap", value=False)
-    st.caption("The local map works offline. Geographic placement is illustrative only.")
+    online_map = st.checkbox("Show online Long Beach basemap", value=True, key="online_map")
+    focus = st.selectbox("Map view", ["Whole harbor", "Exercise area"], key="map_focus")
+    st.caption(
+        "Turn off the online basemap for the offline harbor layout. Live exercise detail always works offline."
+    )
     st.info(
         "The engine runs on your CPU. Groq is optional; provider failures never replace the deterministic assessment."
+    )
+
+
+def render_maps(snapshot=None, context=None):
+    """Keep harbor context visible before startup and during engine outages."""
+    harbor, detail = st.columns([2.2, 1.15])
+    with harbor:
+        st.subheader("Long Beach Harbor | Harbor overview")
+        if online_map:
+            st.pydeck_chart(
+                geographic_map(snapshot, context, focus=focus == "Exercise area"),
+                height=490,
+                key="harbor_overview",
+            )
+            st.caption(
+                "Drag to pan / scroll to zoom. If map tiles do not load, turn off the online basemap in the sidebar."
+            )
+        else:
+            # st.html sanitizes SVG elements away. Streamlit's image path embeds
+            # the complete SVG as a data image, with no HTML sanitizer involved.
+            st.image(
+                harbor_layout(snapshot, context),
+                width="stretch",
+                alt="Offline Long Beach harbor layout with piers and fictional vessels",
+            )
+            st.caption(
+                "Offline schematic: illustrative shoreline and facility layout; no map tiles or WebGL required."
+            )
+        st.caption(
+            "Amber: cargo terminals · Cyan: logistics · Blue: 22 fictional context vessels. These markers are not engine assessments."
+        )
+    with detail:
+        st.subheader("Live exercise detail")
+        st.image(
+            local_map(snapshot or empty_map(), context),
+            width="stretch",
+            alt="Live engine estimates, zones and conditional forecasts in local metres",
+        )
+        st.caption(
+            "Local metres · Dots: engine estimates · Dashed lines: conditional forecasts · Red/amber: demo policy zones"
+        )
+        if not snapshot or not snapshot["tracks"]:
+            st.caption("No live observations yet. Start an exercise to see tracks and forecasts here.")
+        st.dataframe(pd.DataFrame(TERMINALS)[["name", "kind"]], hide_index=True, width="stretch")
+    st.caption(
+        "Public facility names and approximate display anchors from the original Dashboard. All track placement is illustrative, not for navigation."
     )
 
 
@@ -90,6 +139,7 @@ def live_panel():
     except DemoError as error:
         st.error(str(error))
         st.warning("Live data is unavailable. No current assessment is displayed.")
+        render_maps()
         return
     if st.session_state.get("action_error"):
         st.error(st.session_state["action_error"])
@@ -109,6 +159,7 @@ def live_panel():
         st.info(
             "Ready. Choose an exercise and press Start exercise to send Pako sensor observations to the decision engine."
         )
+        render_maps()
         return
     owned = session_id == state["session_id"]
     active = not snapshot["session"]["stopped"]
@@ -131,21 +182,8 @@ def live_panel():
             "An existing session was recovered or started elsewhere. It is displayed without taking over its simulator. Stop it explicitly to start a new exercise."
         )
 
-    left, right = st.columns([2.1, 1])
-    with left:
-        st.subheader("Harbor overview")
-        if online_map:
-            st.pydeck_chart(geographic_map(snapshot), height=460)
-            st.caption(
-                "Online tiles / illustrative projection. Switch off the basemap for the offline local map."
-            )
-        else:
-            st.html(local_map(snapshot, state["context"] if owned else {}))
-        st.caption(
-            "Dots = engine estimates · Dashed lines = conditional mean forecasts · Red/amber areas = demo policy zones · Blue vessel = synthetic context only"
-        )
-    with right:
-        st.subheader("Live fault controls")
+    render_maps(snapshot, state["context"] if owned else {})
+    with st.expander("Live fault controls", expanded=True):
         if owned and active:
             if st.button(
                 "Restore sonar" if state["sensor_loss"] else "Lose sonar coverage", key="sensor_fault"

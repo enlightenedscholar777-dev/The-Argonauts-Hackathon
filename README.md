@@ -13,7 +13,7 @@ Set-Location D:\The-Argonauts-Hackathon
 .\.venv\Scripts\python.exe -m scripts.launch_demo
 ```
 
-Open **http://127.0.0.1:8501** and select **Start exercise**. One command starts both services; no token copying is needed. The default is fully local with AI off and an offline map. Pause, step, sonar loss, duplicate replay, and durable acknowledgment are available in the console. Ctrl+C stops both services and preserves the database.
+Open **http://127.0.0.1:8501** and select **Start exercise**. One command starts both services; no token copying is needed. The original Long Beach harbor overview is visible immediately, with a separate live exercise map. AI defaults to off. Turn off **Show online Long Beach basemap** to use the offline harbor layout; the exercise map always works offline. Pause, step, sonar loss, duplicate replay, and durable acknowledgment are available in the console. Ctrl+C stops both services and preserves the database.
 
 For a fresh clone, create `.venv` with Python 3.12 first (`py -3.12 -m venv .venv`, or use your installed Python executable). On macOS/Linux use `.venv/bin/python` in place of the Windows path.
 
