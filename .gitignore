@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Harbor demo local credentials, state, and environment caches
+runtime/
+*.sqlite3*
+.uv-cache/
+.python/

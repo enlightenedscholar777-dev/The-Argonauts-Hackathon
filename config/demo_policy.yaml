@@ -1,0 +1,62 @@
+version: demo_policy_1
+registry_version: demo_registry_1
+procedure_version: demo_procedures_1
+description: "DEMO POLICY — synthetic thresholds, not operational harbor procedures"
+bounds: [0, 0, 1000, 700]
+zones:
+  restricted_01:
+    kind: restricted
+    vertices: [[350, 100], [450, 100], [450, 220], [350, 220]]
+  hazard_01:
+    kind: hazard
+    vertices: [[650, 400], [750, 400], [750, 500], [650, 500]]
+routes:
+  research_route: [[50, 50], [900, 50]]
+  approach_route: [[100, 160], [500, 160]]
+sources:
+  sim_sonar_01: {kind: position, role: sensor, interval_seconds: 1, fresh_intervals: 3, lost_intervals: 10}
+  sim_telemetry_01: {kind: telemetry, role: sensor, interval_seconds: 5, fresh_intervals: 3, lost_intervals: 10}
+  operator_console: {kind: operator, role: operator, interval_seconds: 1, fresh_intervals: 3, lost_intervals: 10}
+missions:
+  research_mission:
+    vehicle_id: research_auv_02
+    operator_label: Research Team
+    route_id: research_route
+    start_offset: -60
+    end_offset: 7200
+    permitted_zones: []
+    telemetry_source: sim_telemetry_01
+    heartbeat_interval: 5
+  inspection_mission:
+    vehicle_id: inspection_auv_01
+    operator_label: Inspection Team
+    route_id: approach_route
+    start_offset: -60
+    end_offset: 7200
+    permitted_zones: [restricted_01]
+    telemetry_source: sim_telemetry_01
+    heartbeat_interval: 5
+thresholds: {}
+evidence_response_seconds:
+  REQUEST_POSITION_UPDATE: 1
+  VERIFY_TRACK_IDENTITY: 5
+  CHECK_MISSION_RECORD: 3
+  ASK_KNOWN_OPERATOR: 5
+action_catalog: [MONITOR, VERIFY_PERMISSION, REQUEST_FRESH_OBSERVATION, CONTACT_OPERATOR, HUMAN_REVIEW]
+rule_procedures:
+  IDENTITY_UNCONFIRMED: proc_identity_check
+  MISSION_PERMISSION_DENIED: proc_permission
+  PROJECTED_ZONE_ENTRY: proc_handoff
+  PROJECTED_ZONE_APPROACH: proc_approach
+  HAZARD_ZONE_OCCUPIED: proc_hazard
+  RESTRICTED_ZONE_PERMISSION_UNCONFIRMED: proc_permission
+  RESTRICTED_ZONE_PERMISSION_DENIED: proc_permission
+  POSITION_UNCERTAINTY_NEAR_ZONE: proc_uncertainty
+  TRACK_DATA_LOST: proc_loss
+  TRACK_DATA_STALE: proc_loss
+  SENSOR_CONFLICT: proc_conflict
+  FILTER_UNAVAILABLE: proc_conflict
+  CLOCK_UNCERTAIN: proc_conflict
+  ROUTE_DEVIATION: proc_route
+  EXPECTED_COMMUNICATION_MISSING: proc_communications
+  WITHIN_DEMO_MISSION_CONSTRAINTS: proc_monitor

@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harbor Watch · Decision Engine</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><header><div class="eyebrow">ARGONAUTS / LOCAL DECISION SUPPORT</div><h1>Harbor watch</h1>
+<p class="banner">SYNTHETIC DEMO DATA · Advisory actions · Demo policy assumptions · Human handoff only</p></header>
+<form id="connect"><label for="token">Viewer token</label><input id="token" type="password" autocomplete="off" placeholder="Paste local viewer token"><button>Connect</button><span>Held in memory only</span></form>
+<p id="error" role="alert"></p><section id="status" aria-live="polite">Waiting for a viewer connection.</section>
+<main><section class="map-panel"><h2>Local harbor · meters</h2><p>X east / Y north. Mean path is a conditional forecast.</p><svg id="map" viewBox="0 0 1000 700" role="img" aria-label="Local coordinate track and zone view"></svg><p>Red: restricted · Amber: hazard · Cyan: tracks and mean forecasts</p></section>
+<section><h2>Current assessments</h2><div id="tracks"><p>No observations received. Coverage is unknown.</p></div></section></main>
+<footer>CPU numerical tracking + geometric forecasts + explicit policy + local BM25 + optional AI. LOW is not a safety guarantee.</footer>
+<script src="/static/app.js"></script></body></html>

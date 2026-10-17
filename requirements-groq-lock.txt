@@ -1,0 +1,4 @@
+# Optional additions to requirements-lock.txt; SDK tested with fake HTTP only.
+groq==0.37.1
+distro==1.9.0
+sniffio==1.3.1
