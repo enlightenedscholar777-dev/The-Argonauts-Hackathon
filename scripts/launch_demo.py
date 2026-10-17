@@ -138,7 +138,7 @@ def main():
         print(f"Dashboard: {dashboard_url}\nEngine API: {engine_url}/docs", flush=True)
         print(f"AI mode: {args.ai}. CPU assessments remain available without Groq.", flush=True)
         print(
-            "Choose Start exercise in the dashboard. Ctrl+C stops both services; committed data is preserved.",
+            "Open Harbor-maester: Harbor-wide operations starts if no session is active. Use Simulation for scenarios. Ctrl+C stops both services; committed data is preserved.",
             flush=True,
         )
         if not args.check:

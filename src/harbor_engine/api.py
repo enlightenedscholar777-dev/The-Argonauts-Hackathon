@@ -20,8 +20,11 @@ from .schemas import (
     Close,
     Command,
     CreateSession,
+    DetectionBatch,
     Event,
     Fault,
+    SurfaceAcknowledgment,
+    SurfaceBatch,
 )
 
 
@@ -119,6 +122,8 @@ def snapshot(core, state):
         "tracks": [],
         "open_incidents": [],
         "simulated_faults": [key for key, until in state["faults"].items() if until > utc_now()],
+        "surface": copy.deepcopy(state.get("surface")),
+        "detection": copy.deepcopy(state.get("detection")),
     }
     for track_id, track in state["tracks"].items():
         assessment = copy.deepcopy(track["assessment"])
@@ -258,6 +263,23 @@ async def advance(request: Request, session_id: ID, body: Advance):
     return await request.app.state.core.submit("advance", session_id, body.model_dump(mode="json"))
 
 
+@router.post("/v1/sessions/{session_id}/surface", dependencies=[Depends(sensor_or_operator)])
+async def surface_batch(request: Request, session_id: ID, body: SurfaceBatch):
+    return await request.app.state.core.submit("surface_batch", session_id, body.model_dump(mode="json"))
+
+
+@router.post("/v1/sessions/{session_id}/detections", dependencies=[Depends(sensor_or_operator)])
+async def detection_batch(request: Request, session_id: ID, body: DetectionBatch):
+    return await request.app.state.core.submit("detection_batch", session_id, body.model_dump(mode="json"))
+
+
+@router.post("/v1/sessions/{session_id}/surface/{vessel_id}/ack", dependencies=[Depends(operator_access)])
+async def surface_ack(request: Request, session_id: ID, vessel_id: ID, body: SurfaceAcknowledgment):
+    return await request.app.state.core.submit(
+        "surface_ack", session_id, {**body.model_dump(mode="json"), "vessel_id": vessel_id}
+    )
+
+
 @router.post("/v1/sessions/{session_id}/identity-bindings", dependencies=[Depends(operator_access)])
 async def binding(request: Request, session_id: ID, body: Binding):
     return await request.app.state.core.submit("binding", session_id, body.model_dump(mode="json"))
@@ -286,6 +308,31 @@ async def enrichment(request: Request, session_id: ID, track_id: ID, body: Comma
     return await request.app.state.core.submit(
         "enrichment", session_id, {**body.model_dump(mode="json"), "track_id": track_id}
     )
+
+
+@router.get(
+    "/v1/sessions/{session_id}/tracks/{track_id}/explanation-context",
+    dependencies=[Depends(operator_access)],
+)
+async def explanation_context(request: Request, session_id: ID, track_id: ID):
+    """Read-only evidence for private browser-session explanations; no credentials accepted."""
+    from .ai.worker import make_snapshot
+
+    state = await get_session(request, session_id)
+    track = state["tracks"].get(track_id)
+    if not track:
+        raise DomainError("TRACK_NOT_FOUND", "Track not found", 404)
+    assessment = track["assessment"]
+    return {
+        "session_id": session_id,
+        "generation": state["generation"],
+        "digest": track["digest"],
+        "core_revision": assessment["core_revision"],
+        "assessed_at": assessment["assessed_at"],
+        "usable": not state["stopped"] and assessment["capability"]["data_quality"]
+        in ("FRESH", "INSUFFICIENT_HISTORY"),
+        "snapshot": make_snapshot(state, track_id),
+    }
 
 
 @router.post("/v1/demo/faults", dependencies=[Depends(operator_access)])

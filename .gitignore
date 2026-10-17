@@ -224,3 +224,10 @@ runtime/
 *.sqlite3*
 .uv-cache/
 .python/
+
+# Release hygiene: alternate credentials, training environments, local data copies
+.env.*
+!.env.example
+.venv*/
+data/long_beach_dataset_only/
+site-dist/

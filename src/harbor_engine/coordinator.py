@@ -13,8 +13,10 @@ from datetime import datetime
 from .clock import SessionClock, stamp, utc_now
 from .errors import DomainError
 from .incidents import reconcile
+from .motion import ingest_detection, reassess_detection
 from .policy import Policy, assess
 from .storage import encode
+from .surface import assess_surface
 from .tracking import initialize, update
 
 
@@ -53,6 +55,8 @@ class Coordinator:
                 track["assessment"]["ai_enrichment"] = None
             for track_id in self.state["tracks"]:
                 self.reassess(self.state, track_id)
+            self.reassess_surface(self.state)
+            reassess_detection(self.state)
             self.state["saved_utc"] = utc_now()
             await self.storage.commit(
                 self.state,
@@ -165,6 +169,25 @@ class Coordinator:
                 "STALE_REVISION", "Review the current assessment before acting", current_core_revision=current
             )
 
+    def reassess_surface(self, state):
+        if "surface_input" not in state:
+            return
+        previous = {r["vessel_id"]: r for r in state.get("surface", {}).get("vessels", [])}
+        batch = state["surface_input"]
+        observed = datetime.fromisoformat(batch["observed_at"].replace("Z", "+00:00")).timestamp()
+        result = assess_surface(batch["vessels"], max(0, state["now"] - observed))
+        result["revision"] = state.get("surface", {}).get("revision", 0) + 1
+        result["observed_at"] = batch["observed_at"]
+        for row in result["vessels"]:
+            old = previous.get(row["vessel_id"], {})
+            signature = (row["reason_codes"], sorted(e["vessel_id"] for e in row["encounters"]))
+            old_signature = (
+                old.get("reason_codes"),
+                sorted(e["vessel_id"] for e in old.get("encounters", [])),
+            )
+            row["acknowledgment"] = old.get("acknowledgment") if signature == old_signature else None
+        state["surface"] = result
+
     def find_track(self, state, track_id):
         if track_id not in state["tracks"]:
             raise DomainError("TRACK_NOT_FOUND", "Track not found", 404)
@@ -214,6 +237,8 @@ class Coordinator:
                 "start": start,
                 "now": start,
                 "seed": body["seed"],
+                "exercise_area": body.get("exercise_area", "west_basin"),
+                "detection_scope": body.get("detection_scope", "harbor"),
                 "generation": uuid.uuid4().hex,
                 "stopped": False,
                 "clock_uncertain": False,
@@ -253,6 +278,56 @@ class Coordinator:
             response = {"schema_version": "1.0"}
             if kind == "event":
                 event, changed, response = await self.apply_event(state, body, digest, role)
+            elif kind == "detection_batch":
+                observed = datetime.fromisoformat(body["observed_at"].replace("Z", "+00:00")).timestamp()
+                if observed > state["now"] or state["now"] - observed > 4:
+                    raise DomainError(
+                        "DETECTION_TIMESTAMP", "Detection batch must match the session clock", 422
+                    )
+                if observed <= state.get("detection_observed", float("-inf")):
+                    raise DomainError("DETECTION_OUT_OF_ORDER", "Detection times must increase", 409)
+                try:
+                    ingest_detection(state, body, observed)
+                except ValueError as error:
+                    raise DomainError("DETECTION_INPUT", str(error), 422) from None
+                response = state["detection"]
+            elif kind == "surface_batch":
+                observed = datetime.fromisoformat(body["observed_at"].replace("Z", "+00:00")).timestamp()
+                if observed > state["now"] + 1 or state["now"] - observed > 30:
+                    raise DomainError(
+                        "SURFACE_TIMESTAMP", "Surface batch must match the current scenario clock", 422
+                    )
+                old = state.get("surface_input")
+                if (
+                    old
+                    and observed
+                    <= datetime.fromisoformat(old["observed_at"].replace("Z", "+00:00")).timestamp()
+                ):
+                    raise DomainError(
+                        "SURFACE_OUT_OF_ORDER", "Surface batches must advance observation time", 409
+                    )
+                state["surface_input"] = body
+                self.reassess_surface(state)
+                response = state["surface"]
+            elif kind == "surface_ack":
+                surface = state.get("surface", {})
+                if surface.get("revision") != body["expected_revision"]:
+                    raise DomainError("STALE_REVISION", "Review the current surface assessment before acting")
+                row = next(
+                    (v for v in surface.get("vessels", []) if v["vessel_id"] == body["vessel_id"]), None
+                )
+                if not row or not row["reason_codes"]:
+                    raise DomainError("SURFACE_ALERT_NOT_FOUND", "No current alert for this vessel", 404)
+                row["acknowledgment"] = {
+                    "actor": self.settings.operator_label,
+                    "time": stamp(state["now"]),
+                    "note": body["note"],
+                }
+                response = {
+                    "vessel_id": row["vessel_id"],
+                    "acknowledgment": row["acknowledgment"],
+                    "revision": surface["revision"],
+                }
             elif kind in ("tick", "advance"):
                 if kind == "advance":
                     if state["clock_mode"] != "manual" or not self.settings.demo_mode:
@@ -264,7 +339,9 @@ class Coordinator:
                 changed = list(state["tracks"])
                 for track_id in changed:
                     self.reassess(state, track_id)
+                self.reassess_surface(state)
                 response = self.metadata(state)
+                reassess_detection(state)
             elif kind == "stop":
                 state["stopped"] = True
                 state["faults"] = {}
@@ -388,7 +465,6 @@ class Coordinator:
             raise DomainError(
                 "STORAGE_UNAVAILABLE", "Transaction failed; no new state published", 503, True
             ) from None
-        previous = self.state
         self.state = state
         if kind == "create":
             self.clock = SessionClock(state["now"])
@@ -396,20 +472,19 @@ class Coordinator:
                 values.clear()
         if kind == "event":
             self.counts[response["disposition"]] += 1
+        if kind == "surface_batch":
+            self.counts["surface_observations"] += len(body["vessels"])
+        if kind == "detection_batch":
+            self.counts["object_observations"] += len(body["objects"])
         self.counts["committed_commands"] += 1
         if self.ai:
             if state["stopped"]:
                 self.ai.cancel_session()
             elif kind == "create":
                 self.ai.new_session()
-            elif kind not in ("ai_result", "ai_start", "ack", "close"):
-                for track_id in changed:
-                    old = previous["tracks"].get(track_id, {}) if previous else {}
-                    track = state["tracks"][track_id]
-                    if track["digest"] != old.get("digest") and track.get("incident"):
-                        self.ai.schedule(state, track_id)
-                if kind == "enrichment":
-                    self.ai.schedule(state, body["track_id"])
+            elif kind == "enrichment":
+                # External inference is opt-in per operator request, never per observation.
+                self.ai.schedule(state, body["track_id"])
         return response
 
     async def apply_event(self, state, body, digest, role):
@@ -567,6 +642,8 @@ class Coordinator:
             "current_time": stamp(state["now"]),
             "stopped": state["stopped"],
             "seed": state["seed"],
+            "exercise_area": state.get("exercise_area", "west_basin"),
+            "detection_scope": state.get("detection_scope", "harbor"),
             "synthetic_data": True,
             "clock_uncertain": state["clock_uncertain"],
             "policy_version": state["policy"]["version"],

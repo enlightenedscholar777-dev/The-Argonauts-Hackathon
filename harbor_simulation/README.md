@@ -1,8 +1,8 @@
-# Harbor Resilience Simulator — hackathon MVP
+﻿# Harbor-maester — harbor operator workspace
 
 ## Integrated v1 demo
 
-`app.py` now reads the live decision engine API and drives Pako sensors through `integration.py`. Run from the repository root with `python -m scripts.launch_demo`; see [the complete v1 guide](../docs/V1_DEMO.md). The engine must be running; the launcher handles both processes and credentials.
+`app.py` provides the Harbor-maester Overview, Contacts, Traffic, Simulation and Activity pages. Harbor-wide operations starts automatically when no session is active; existing sessions are preserved. It reads the live decision engine API and drives Pako sensors through `integration.py`. Run from the repository root with `python -m scripts.launch_demo`; see [the complete v1 guide](../docs/V1_DEMO.md). The engine must be running; the launcher handles both processes and credentials.
 
 The original independent CSV dashboard is preserved as `legacy_app.py`, alongside `core.py`, `generate_data.py`, and all six datasets. The instructions and limitations below describe that historical prototype; use `python -m streamlit run legacy_app.py` to open it separately. Its template explanation is not a connected LLM and its assessments are not the integrated engine's output.
 
@@ -50,7 +50,7 @@ All records are dated Jan 1–Oct 16, 2026 and are marked synthetic. Real NOAA A
 This MVP does **not** implement EKF, real sensor fusion, real LLM/RAG, distributed failover, persistent incident approval, or a validated operational safety policy. It is a demonstration of failure modes and separation of concerns, not a production maritime security system.
 
 ## Long Beach Harbor dashboard upgrade
-The updated `app.py` features a dark maritime dashboard, interactive Long Beach
+The preserved `legacy_app.py` features a dark maritime dashboard, interactive Long Beach
 Harbor basemap, four illustrative public-facing cargo/logistics facility markers,
 fictional vessel and incident markers, trend charts, evidence views, and fault
 injection controls. Existing `core.py`, `generate_data.py`, and all six synthetic

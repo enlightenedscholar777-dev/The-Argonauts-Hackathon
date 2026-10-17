@@ -1,0 +1,70 @@
+{
+  "scope": "Synthetic scenarios through the real engine API using in-process ASGI transport; CPU-only, no human baseline or real-world safety claim",
+  "ai_provider": "off",
+  "scenarios": {
+    "Harbor approach": {
+      "scenario_seconds": 60,
+      "first_high_concern_s": 36,
+      "first_estimated_zone_entry_s": 51,
+      "warning_lead_seconds": 15,
+      "first_stale_s": null,
+      "first_lost_s": null,
+      "core_ready": "READY",
+      "surface_observations_accepted": 2695,
+      "sonar_contacts": 2,
+      "surface_vessels": 45,
+      "surface_advisories": 16,
+      "ingestion_step_ms_p50": 43.56,
+      "ingestion_step_ms_p95": 74.89,
+      "model_pair_checks_per_step": 990
+    },
+    "Sensor outage": {
+      "scenario_seconds": 32,
+      "first_high_concern_s": null,
+      "first_estimated_zone_entry_s": null,
+      "warning_lead_seconds": null,
+      "first_stale_s": 13,
+      "first_lost_s": 20,
+      "core_ready": "READY",
+      "surface_observations_accepted": 1452,
+      "sonar_contacts": 1,
+      "surface_vessels": 44,
+      "surface_advisories": 14,
+      "ingestion_step_ms_p50": 44.13,
+      "ingestion_step_ms_p95": 56.29,
+      "model_pair_checks_per_step": 946
+    },
+    "Port operations disruption": {
+      "scenario_seconds": 55,
+      "first_high_concern_s": 36,
+      "first_estimated_zone_entry_s": 51,
+      "warning_lead_seconds": 15,
+      "first_stale_s": null,
+      "first_lost_s": null,
+      "core_ready": "READY",
+      "surface_observations_accepted": 2464,
+      "sonar_contacts": 2,
+      "surface_vessels": 44,
+      "surface_advisories": 30,
+      "ingestion_step_ms_p50": 70.58,
+      "ingestion_step_ms_p95": 106.56,
+      "model_pair_checks_per_step": 946
+    },
+    "Harbor-wide operations": {
+      "scenario_seconds": 35,
+      "first_high_concern_s": null,
+      "first_estimated_zone_entry_s": null,
+      "warning_lead_seconds": null,
+      "first_stale_s": null,
+      "first_lost_s": null,
+      "core_ready": "READY",
+      "surface_observations_accepted": 1584,
+      "sonar_contacts": 8,
+      "surface_vessels": 44,
+      "surface_advisories": 14,
+      "ingestion_step_ms_p50": 209.14,
+      "ingestion_step_ms_p95": 279.81,
+      "model_pair_checks_per_step": 946
+    }
+  }
+}

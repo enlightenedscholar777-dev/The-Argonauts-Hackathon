@@ -3,6 +3,17 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, model_validator
 
+from .geography import AREAS
+
+
+def known_area(value):
+    if value not in AREAS:
+        raise ValueError("Choose a configured harbor area")
+    return value
+
+
+AreaID = Annotated[str, AfterValidator(known_area)]
+
 ID = Annotated[str, Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")]
 
 
@@ -32,6 +43,8 @@ class CreateSession(Command):
     clock_mode: Literal["realtime", "manual"] = "realtime"
     start_time: UTC | None = None
     seed: int = Field(42, ge=0, le=2**32 - 1)
+    exercise_area: AreaID = "west_basin"
+    detection_scope: Literal["harbor", "area"] = "harbor"
 
     @model_validator(mode="after")
     def start(self):
@@ -87,6 +100,65 @@ class Event(Strict):
 
 class Advance(Command):
     delta_seconds: float = Field(gt=0, le=5)
+
+
+class DetectionObject(Strict):
+    object_id: ID
+    area_id: AreaID
+    x_m: float = Field(ge=-2000, le=3000)
+    y_m: float = Field(ge=-2000, le=3000)
+    position_sigma_m: float = Field(gt=0, le=100)
+
+
+class DetectionBatch(Command):
+    observed_at: UTC
+    objects: list[DetectionObject] = Field(max_length=64)
+
+    @model_validator(mode="after")
+    def unique_objects(self):
+        if len({o.object_id for o in self.objects}) != len(self.objects):
+            raise ValueError("Object IDs must be unique within a batch")
+        return self
+
+
+class SurfaceVessel(Strict):
+    vessel_id: ID
+    route_id: ID
+    destination: str = Field(min_length=1, max_length=80)
+    lon: float = Field(ge=-118.30, le=-118.10)
+    lat: float = Field(ge=33.68, le=33.82)
+    vx_mps: float = Field(ge=-25, le=25)
+    vy_mps: float = Field(ge=-25, le=25)
+    route: list[tuple[float, float]] = Field(min_length=2, max_length=16)
+    status: Literal["UNDERWAY", "HOLDING", "BERTHED"]
+    phase: Literal["INBOUND", "OUTBOUND", "BERTHED"]
+    scheduled_arrival_s: float = Field(ge=0, le=86400)
+    eta_s: float = Field(ge=0, le=86400)
+    delay_s: float = Field(ge=0, le=86400)
+
+    @model_validator(mode="after")
+    def bounded_route(self):
+        if any(not (-118.30 <= x <= -118.10 and 33.68 <= y <= 33.82) for x, y in self.route):
+            raise ValueError("Surface routes must be inside the demo harbor region")
+        if len(set(self.route)) < 2:
+            raise ValueError("A route needs distinct positions")
+        return self
+
+
+class SurfaceBatch(Command):
+    observed_at: UTC
+    vessels: list[SurfaceVessel] = Field(max_length=100)
+
+    @model_validator(mode="after")
+    def unique_vessels(self):
+        if len({v.vessel_id for v in self.vessels}) != len(self.vessels):
+            raise ValueError("Duplicate surface vessel identifiers")
+        return self
+
+
+class SurfaceAcknowledgment(Command):
+    expected_revision: int = Field(ge=1)
+    note: str = Field(default="Review acknowledged in Harbor-maester", max_length=300)
 
 
 class Binding(Command):

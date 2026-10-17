@@ -25,6 +25,26 @@ def by_track(demo):
     return {t["track_id"]: t for t in demo.api.snapshot(demo.session_id)["tracks"]}
 
 
+def test_operator_bootstrap_runs_once_and_preserves_external_session(integrated):
+    demo = integrated
+    demo.ensure_started()
+    sid = demo.session_id
+    assert demo.running
+    assert len(by_track(demo)) == 8
+    assert len(demo.view()["context"]["traffic"]) == 48
+    demo.pause()
+    demo.ensure_started()
+    assert demo.session_id == sid and not demo.running
+    demo.stop(sid)
+    demo.ensure_started()
+    assert demo.api.status()["active_session_id"] is None
+    demo.start("Normal operations", autoplay=False)
+    external = DemoController(demo.api, background=False)
+    external.ensure_started()
+    assert external.session_id is None
+    assert demo.api.status()["active_session_id"] == demo.session_id
+
+
 def test_range_bearing_projection_and_measurement_limits():
     observation = Observation(track_id="unknown", value=BearingRange(90, 20, 10, 30, 2, 3))
     payload = position_payload(observation)
@@ -100,6 +120,8 @@ def test_optional_ai_failure_does_not_stop_integration(tmp_path, mode):
         demo.start("Normal operations", autoplay=False)
         if mode == "fake":
             demo.ai_fault(True)
+            assert demo.api.status()["ai"]["counters"]["attempted"] == 0
+            demo.enrich(demo.session_id, "research_auv_02")
         for _ in range(8):
             demo.step()
         track = by_track(demo)["research_auv_02"]

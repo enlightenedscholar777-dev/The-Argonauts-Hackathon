@@ -133,6 +133,7 @@ async def test_faults_use_real_validation_path(tmp_path, fault, expected):
             "POST", "/v1/demo/faults", {"command_id": "inject", "fault": fault, "enabled": True}
         )
         await observe(client, 50)
+        await client.command("tracks/track_01/enrichment")
         await wait_idle(app.state.core.ai)
         assert app.state.core.ai.status == expected
         assert fake.calls == 0
@@ -146,6 +147,7 @@ async def test_late_ai_from_stopped_session_cannot_attach(tmp_path):
     async with running(settings, fake) as (app, client):
         await client.create("manual", 42)
         await observe(client, 50)
+        await client.command("tracks/track_01/enrichment")
         await fake.entered.wait()
         old_session = client.session_id
         old_generation = app.state.core.state["generation"]

@@ -14,6 +14,42 @@ async def wait_idle(worker):
             await asyncio.sleep(0)
 
 
+async def test_ai_only_runs_on_explicit_request(tmp_path):
+    fake = FakeProvider()
+    async with running(configuration(tmp_path, ai_provider="fake"), fake) as (app, client):
+        await client.create("manual", 42)
+        await established(client)
+        await wait_idle(app.state.core.ai)
+        assert fake.calls == 0
+        assert (await client.track())["recommendation"]["primary_action"] == "VERIFY_PERMISSION"
+        await client.command("tracks/track_01/enrichment")
+        await wait_idle(app.state.core.ai)
+        assert fake.calls == 1
+        assert (await client.track())["ai_enrichment"] is not None
+        await client.bind("research_mission")
+        for x in (65, 70, 75):
+            await advance(client)
+            await observe(client, x)
+        await wait_idle(app.state.core.ai)
+        assert fake.calls == 1
+
+
+async def test_rate_limited_request_does_not_retry_on_updates(tmp_path):
+    fake = FakeProvider("rate_limit")
+    async with running(configuration(tmp_path, ai_provider="fake"), fake) as (app, client):
+        await client.create("manual", 42)
+        await observe(client, 50)
+        await client.command("tracks/track_01/enrichment")
+        await wait_idle(app.state.core.ai)
+        assert app.state.core.ai.status == "RATE_LIMITED"
+        await client.command("tracks/track_01/enrichment")
+        await advance(client)
+        await observe(client, 52)
+        await wait_idle(app.state.core.ai)
+        assert fake.calls == 1
+        assert (await client.track())["recommendation"]["primary_action"] == "VERIFY_PERMISSION"
+
+
 @pytest.mark.parametrize(
     "mode,status",
     [
@@ -38,6 +74,7 @@ async def test_provider_outcomes_and_core_continuity(tmp_path, mode, status):
     async with running(settings, fake) as (app, client):
         await client.create("manual", 42)
         await observe(client, 50)
+        await client.command("tracks/track_01/enrichment")
         await wait_idle(app.state.core.ai)
         assert app.state.core.ai.status == status
         assert fake.calls == 1
@@ -61,6 +98,7 @@ async def test_blocked_provider_nonblocking_and_semantic_revalidation(tmp_path, 
     async with running(settings, fake) as (app, client):
         await client.create("manual", 42)
         await observe(client, 50)
+        await client.command("tracks/track_01/enrichment")
         await fake.entered.wait()
         for x in (52, 54, 56):
             await advance(client)
@@ -87,6 +125,7 @@ async def test_stop_cancels_pending_and_faults_are_mock(tmp_path):
             "POST", "/v1/demo/faults", {"command_id": "fault", "fault": "AI_TIMEOUT", "enabled": True}
         )
         await observe(client, 50)
+        await client.command("tracks/track_01/enrichment")
         await wait_idle(app.state.core.ai)
         assert app.state.core.ai.status == "TIMED_OUT"
         assert fake.calls == 0
@@ -107,9 +146,11 @@ async def test_bounded_jobs_budget_and_no_retry_storm(tmp_path):
     async with running(settings, fake) as (app, client):
         await client.create("manual", 42)
         await observe(client, 50)
+        await client.command("tracks/track_01/enrichment")
         await fake.entered.wait()
         for index in range(1, 10):
             await observe(client, 50, 50, f"track_{index}")
+            await client.command(f"tracks/track_{index}/enrichment")
         assert len(app.state.core.ai.pending) <= 2
         gate.set()
         await wait_idle(app.state.core.ai)

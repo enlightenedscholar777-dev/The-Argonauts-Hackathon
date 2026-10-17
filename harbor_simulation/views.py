@@ -3,8 +3,10 @@
 import html
 import math
 
+from harbor_engine.geography import AREAS, project_area
 from harbor_simulation.map_catalog import TERMINALS, WATERWAYS
 from harbor_simulation.traffic import HarborTraffic
+from harbor_simulation.voyages import VOYAGE_ROUTES
 
 COLORS = {"LOW": "#43d9b5", "ELEVATED": "#ffc66d", "HIGH": "#ff6b7a", "UNKNOWN": "#a7b5cb"}
 INK = "#e9f3fc"
@@ -12,12 +14,36 @@ MUTED = "#9ab6c9"
 
 
 def map_traffic(context):
-    return context["traffic"] if context and "traffic" in context else HarborTraffic().sample(0)
+    traffic = context["traffic"] if context and "traffic" in context else HarborTraffic().sample(0)
+    assessments = {
+        v["vessel_id"]: v for v in (context or {}).get("surface_assessment", {}).get("vessels", [])
+    }
+    result = []
+    for vessel in traffic:
+        if vessel["lon"] is None:
+            continue
+        a = assessments.get(vessel["vessel_id"], {})
+        color = (
+            COLORS.get(a.get("concern"), "#539bd0")
+            if a.get("reason_codes")
+            else "#ffc66d"
+            if vessel["status"] == "HOLDING"
+            else "#539bd0"
+        )
+        result.append(
+            {
+                **vessel,
+                "color": rgb(color),
+                "atlas_color": color,
+                "name": vessel["name"] + "\n" + a.get("recommendation", "Scheduled synthetic voyage"),
+            }
+        )
+    return result
 
 
-def project(x, y):
+def project(x, y, area_id="west_basin"):
     """Display placement only; the numerical engine continues to use local metres."""
-    return [-118.23 + x / (111320 * math.cos(math.radians(33.744))), 33.744 + y / 111320]
+    return project_area(x, y, area_id)
 
 
 def empty_map():
@@ -95,7 +121,7 @@ def compass(d, x, y):
     d.text(x + 13, y + 6, "E", 11, MUTED)
 
 
-def local_map(snapshot, context=None, *, show_forecasts=True, show_uncertainty=True):
+def local_map(snapshot, context=None, *, show_forecasts=True, show_uncertainty=True, selected_track=None):
     """Equal-scale metre plot plus a readable contact and policy key."""
     x0, y0, x1, y1 = snapshot["bounds"]
     scale = min(920 / (x1 - x0), 640 / (y1 - y0))
@@ -107,7 +133,15 @@ def local_map(snapshot, context=None, *, show_forecasts=True, show_uncertainty=T
 
     d = Drawing("Live exercise: measured axes, policy zones, routes and engine estimates")
     d.text(32, 39, "EXERCISE / LOCAL OPERATING PICTURE", 24, weight=700)
-    d.text(32, 68, "Engine estimates · equal-scale metres · synthetic policy", 15, MUTED)
+    d.text(
+        32,
+        68,
+        f"Selected: {selected_track} · white ring"
+        if selected_track
+        else "Engine estimates · equal-scale metres · synthetic policy",
+        15,
+        MUTED,
+    )
     compass(d, 1026, 59)
     d.rect(left, top, plot_w, plot_h, "url(#water)", "#3c6076", 2)
     d.add(
@@ -185,6 +219,8 @@ def local_map(snapshot, context=None, *, show_forecasts=True, show_uncertainty=T
                 2,
             )
         d.circle(x, y, 11, color, INK, 2)
+        if track["track_id"] == selected_track:
+            d.circle(x, y, 19, "none", INK, 3)
         d.text(x, y + 4, index, 12, "#091e30", 700, "middle")
         tx = max(left + 8, min(x - 15, left + plot_w - 190))
         d.text(tx, max(top + 20, y - 25), f"{index:02d} / {track['track_id']}", 14, color, 600, halo=True)
@@ -217,7 +253,7 @@ def local_map(snapshot, context=None, *, show_forecasts=True, show_uncertainty=T
         )
         d.text(1102, y + 91, words(track["recommendation"]["primary_action"]), 14)
     if len(snapshot["tracks"]) > 3:
-        d.text(1102, 547, f"+ {len(snapshot['tracks']) - 3} tracks in assessments below", 12, MUTED)
+        d.text(1102, 547, f"+ {len(snapshot['tracks']) - 3} tracks in Contact review", 12, MUTED)
     d.text(1102, 582, "READING THE MAP", 14, weight=700)
     d.path([(1102, 606), (1130, 606)], "#a7c5df", 2, "10 4 2 4")
     d.text(1142, 611, "Mission reference route", 13, MUTED)
@@ -251,6 +287,21 @@ def geographic_map(
     import pydeck as pdk
 
     snapshot = snapshot or empty_map()
+    area_id = snapshot.get("session", {}).get("exercise_area", "west_basin")
+
+    def project(x, y):
+        return project_area(x, y, area_id)
+
+    objects = [
+        {
+            **o,
+            "position": [o["lon"], o["lat"]],
+            "path": [project_area(*p, o["area_id"]) for p in o["trail"]],
+            "color": [173, 143, 255] if o["status"] != "STALE" else [135, 148, 160],
+            "name": f"{o['object_id']} · {o['area']}\n{o['label']} · {o['status']}\nMaterial unknown · {o['next_step']}",
+        }
+        for o in (snapshot.get("detection") or {}).get("objects", [])
+    ]
     terminals = [
         {
             **t,
@@ -318,6 +369,20 @@ def geographic_map(
     # Literal units/alignment below MUST remain quoted (otherwise paths cover the map).
     layers = [
         pdk.Layer(
+            "PathLayer",
+            [
+                {"path": r["geo"], "name": r["destination"] + " · illustrative voyage route"}
+                for r in VOYAGE_ROUTES
+            ],
+            id="scheduled-routes",
+            visible=show_context,
+            get_path="path",
+            get_color=[84, 143, 170, 110],
+            get_width=2,
+            width_units="'pixels'",
+            pickable=True,
+        ),
+        pdk.Layer(
             "ScatterplotLayer",
             terminals,
             id="harbor-terminals",
@@ -357,7 +422,7 @@ def geographic_map(
             id="context-vessels",
             visible=show_context,
             get_position="[lon, lat]",
-            get_fill_color=[58, 157, 255, 170],
+            get_fill_color="color",
             get_radius=30,
             radius_min_pixels=3,
             radius_max_pixels=5,
@@ -489,6 +554,31 @@ def geographic_map(
             pickable=True,
         ),
     ]
+    layers.extend(
+        [
+            pdk.Layer(
+                "PathLayer",
+                objects,
+                id="object-trails",
+                get_path="path",
+                get_color="color",
+                get_width=2,
+                width_units="'pixels'",
+                pickable=True,
+            ),
+            pdk.Layer(
+                "ScatterplotLayer",
+                objects,
+                id="detected-objects",
+                get_position="position",
+                get_fill_color="color",
+                get_radius=6,
+                radius_min_pixels=4,
+                radius_max_pixels=7,
+                pickable=True,
+            ),
+        ]
+    )
     return pdk.Deck(
         map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
         map_provider="carto",
@@ -590,9 +680,11 @@ def harbor_layout(
         d.text(960, 241, "LONG BEACH WATERFRONT", 11, MUTED, anchor="middle")
         d.text(193, 570, "TERMINAL ISLAND", 11, MUTED, anchor="middle")
     if show_context:
+        for route in VOYAGE_ROUTES:
+            d.path(route["atlas"], "#2b566d", 1.2, "6 6")
         for index, vessel in enumerate(traffic):
             x, y = vessel["anchor"]
-            color = "#ffc66d" if vessel["status"] == "HOLDING" else "#539bd0"
+            color = vessel["atlas_color"]
             d.path(vessel["atlas_trail"], color, 1.5)
             radians = math.radians(vessel["heading"])
             hull = [
@@ -612,10 +704,26 @@ def harbor_layout(
             if show_labels and index < 6:
                 d.text(x, y - 10, vessel["vessel_id"], 9, color, anchor="middle", halo=True)
     # Clearly labeled inset prevents confusing schematic geometry with geography.
+    selected_area = AREAS[snapshot.get("session", {}).get("exercise_area", "west_basin")]
+    ax, ay = selected_area["anchor"]
+    d.circle(ax, ay, 28, "none", "#6ad6e1")
+    d.text(ax, ay - 34, "ACTIVE EXERCISE", 10, "#6ad6e1", anchor="middle", halo=True)
+    for obj in (snapshot.get("detection") or {}).get("objects", []):
+        anchor_x, anchor_y = AREAS[obj["area_id"]]["anchor"]
+        points = [(anchor_x + (p[0] - 500) * 0.16, anchor_y - (p[1] - 350) * 0.16) for p in obj["trail"]]
+        color = "#ad8fff" if obj["status"] != "STALE" else "#8794a0"
+        if len(points) > 1:
+            d.path(points, color, 1.5)
+        d.circle(*points[-1], 4, color, INK)
+        if obj["object_id"] == (context or {}).get("selected_object"):
+            d.circle(*points[-1], 10, "none", INK)
+            d.text(points[-1][0] + 12, points[-1][1] - 10, obj["object_id"], 11, INK, halo=True)
+    d.text(370, 771, "PURPLE: SMALL OBJECTS / MOTION HYPOTHESES", 11, "#ad8fff")
     x0, y0, x1, y1 = snapshot["bounds"]
     ex, ey, ew, eh = 88, 659, 255, 93
     d.rect(ex, ey, ew, eh, "#16465a" if area_focus == "Exercise area" else "#0c293b", "#6ad6e1", 4)
     d.text(ex, ey - 10, "EXERCISE INSET · SYNTHETIC", 12, "#6ad6e1", 700)
+    d.text(ex, ey + eh + 17, selected_area["name"].upper(), 11, "#6ad6e1")
 
     def xy(x, y):
         return ex + (x - x0) / (x1 - x0) * ew, ey + (y1 - y) / (y1 - y0) * eh

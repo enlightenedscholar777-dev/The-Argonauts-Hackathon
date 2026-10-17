@@ -18,7 +18,9 @@ from urllib.parse import urlparse
 
 import httpx
 
+from harbor_engine.geography import AREAS
 from harbor_engine.settings import Settings
+from harbor_simulation.motion_scenarios import ObjectExercise
 from harbor_simulation.traffic import HarborTraffic
 from simulator.data_models.observation import BearingRange
 from simulator.sensors.sensors import (
@@ -30,6 +32,7 @@ from simulator.sensors.sensors import (
 )
 
 SCENARIOS = {
+    "Harbor-wide operations": "15-minute scheduled harbor voyages, berth service and CPU assessments of all visible surface vessels.",
     "Harbor approach": "Unknown contact approaches a restricted zone alongside a confirmed research vehicle.",
     "Normal operations": "Confirmed research vehicle follows its permitted route.",
     "Research route deviation": "The confirmed research vehicle turns off its route after 15 seconds.",
@@ -132,10 +135,16 @@ def position_payload(observation):
 
 
 class PakoScenario:
-    def __init__(self, name, seed, traffic_count=32):
+    def __init__(self, name, seed, traffic_count=32, exercise_area="west_basin", detection_scope="harbor"):
         if name not in SCENARIOS:
             raise DemoError("Choose a supported scenario.")
+        if exercise_area not in AREAS or detection_scope not in {"harbor", "area"}:
+            raise DemoError("Choose a configured exercise area and detection coverage.")
         self.name = name
+        self.exercise_area = exercise_area
+        self.detection_scope = detection_scope
+        self.objects = ObjectExercise(seed, exercise_area, detection_scope)
+        self.duration = 900 if name == "Harbor-wide operations" else 90
         self.traffic = HarborTraffic(seed, traffic_count, name)
         rng = random.Random(seed)
         self.research = ContactSpec("research_auv_02", x0=60, y0=50, vx=2, vy=0)
@@ -145,9 +154,10 @@ class PakoScenario:
             "Unverified underwater report",
             "Port operations disruption",
             "Busy harbor",
+            "Harbor-wide operations",
         }:
             contacts.insert(0, ContactSpec("unknown_01", x0=100, y0=160, vx=5, vy=0))
-        if name == "Busy harbor":
+        if name in {"Busy harbor", "Harbor-wide operations"}:
             for i in range(6):
                 contacts.append(
                     ContactSpec(
@@ -158,6 +168,11 @@ class PakoScenario:
                         vy=0,
                     )
                 )
+        if name == "Harbor-wide operations":
+            self.research.vx = 0.3
+            for contact in contacts:
+                if contact is not self.research:
+                    contact.vx = 0.25
         self.sonar = SonarSensor(
             "sim_sonar_01",
             x=0,
@@ -174,7 +189,7 @@ class PakoScenario:
             x0=60,
             y0=50,
             depth0=-8,
-            vx=2,
+            vx=self.research.vx,
             vy=0,
             report_interval_s=5,
             rng=rng,
@@ -213,6 +228,8 @@ class PakoScenario:
             "dataset": self.traffic.metadata,
             "elapsed": elapsed,
             "scenario": self.name,
+            "exercise_area": self.exercise_area,
+            "object_observations": self.objects.sample(elapsed) if elapsed % 2 == 0 else [],
         }
         return observations, telemetry, context
 
@@ -239,12 +256,14 @@ class DemoController:
         self.boot = "boot_" + uuid.uuid4().hex
         self.period = period
         self.thread = None
+        self._bootstrapped = False
         if background:
             self.thread = threading.Thread(target=self._worker, daemon=True, name="pako-http-feeder")
             self.thread.start()
 
     def _worker(self):
-        while not self.closed.wait(self.period):
+        deadline = time.monotonic() + self.period
+        while not self.closed.wait(max(0, deadline - time.monotonic())):
             with self.lock:
                 if self.running:
                     try:
@@ -256,6 +275,9 @@ class DemoController:
                             if isinstance(error, DemoError)
                             else "Simulator paused after an internal error. Restart the exercise."
                         )
+            # Include ingest time in the playback interval. Do not accumulate
+            # catch-up bursts if processing is slower than the selected pace.
+            deadline = max(deadline + self.period, time.monotonic())
 
     def view(self):
         with self.lock:
@@ -264,6 +286,7 @@ class DemoController:
                     "session_id": self.session_id,
                     "running": self.running,
                     "elapsed": self.elapsed,
+                    "duration": self.scenario.duration if self.scenario else 90,
                     "scenario": self.scenario.name if self.scenario else None,
                     "sensor_loss": self.sensor_loss,
                     "replay": self.replay,
@@ -275,8 +298,24 @@ class DemoController:
                 }
             )
 
+    def ensure_started(self):
+        """Start the operator demo once, without taking over an existing session."""
+        with self.lock:
+            if self._bootstrapped or self.session_id:
+                return
+            if not self.api.status()["active_session_id"]:
+                self.start("Harbor-wide operations", traffic_count=48)
+            self._bootstrapped = True
+
     def start(
-        self, scenario="Harbor approach", seed=42, autoplay=True, traffic_count=32, replace_owned=False
+        self,
+        scenario="Harbor approach",
+        seed=42,
+        autoplay=True,
+        traffic_count=32,
+        replace_owned=False,
+        exercise_area="west_basin",
+        detection_scope="harbor",
     ):
         with self.lock:
             active = self.api.status()["active_session_id"]
@@ -285,7 +324,7 @@ class DemoController:
                     "An exercise is already active. Stop it explicitly before starting a new one."
                 )
             self.running = False
-            candidate = PakoScenario(scenario, seed, traffic_count)
+            candidate = PakoScenario(scenario, seed, traffic_count, exercise_area, detection_scope)
             if active:
                 self.api.command(f"/v1/sessions/{active}/stop")
             session = self.api.command(
@@ -294,6 +333,8 @@ class DemoController:
                 clock_mode="manual",
                 start_time=datetime.now(timezone.utc).isoformat(),
                 seed=seed,
+                exercise_area=exercise_area,
+                detection_scope=detection_scope,
             )
             self.session_id, self.scenario = session["session_id"], candidate
             self.boot = "boot_" + uuid.uuid4().hex
@@ -318,7 +359,7 @@ class DemoController:
 
     def resume(self):
         with self.lock:
-            if not self.scenario or self.elapsed >= 90:
+            if not self.scenario or self.elapsed >= self.scenario.duration:
                 raise DemoError("Start a new exercise to run the simulator.")
             metadata = self.api.request("GET", f"/v1/sessions/{self.session_id}")
             if metadata["stopped"]:
@@ -376,7 +417,8 @@ class DemoController:
                 raise
 
     def _step(self):
-        if not self.scenario or self.elapsed >= 90:
+        started = time.perf_counter()
+        if not self.scenario or self.elapsed >= self.scenario.duration:
             self.running = False
             return
         root = f"/v1/sessions/{self.session_id}"
@@ -415,6 +457,37 @@ class DemoController:
             self._send(
                 self._event("vehicle_heartbeat", {"track_id": observation.track_id}, when, "sim_telemetry_01")
             )
+        surface_fields = {
+            "vessel_id",
+            "route_id",
+            "destination",
+            "lon",
+            "lat",
+            "vx_mps",
+            "vy_mps",
+            "route",
+            "status",
+            "phase",
+            "scheduled_arrival_s",
+            "eta_s",
+            "delay_s",
+        }
+        surface = self.api.command(
+            root + "/surface",
+            observed_at=when,
+            vessels=[
+                {key: v[key] for key in surface_fields}
+                for v in self.context["traffic"]
+                if v["lon"] is not None
+            ],
+        )
+        self.counts["SURFACE_OBSERVATIONS"] += surface["observations"]
+        self.context["surface_assessment"] = surface
+        if not self.sensor_loss and self.context["object_observations"]:
+            self.api.command(
+                root + "/detections", observed_at=when, objects=self.context["object_observations"]
+            )
+            self.counts["OBJECT_OBSERVATIONS"] += len(self.context["object_observations"])
         snapshot = self.api.snapshot(self.session_id)
         for track in snapshot["tracks"]:
             self.trend.append(
@@ -425,8 +498,17 @@ class DemoController:
                     "age_seconds": track["source"]["observation_age_seconds"],
                 }
             )
-        if self.elapsed >= 90:
+        if self.elapsed >= self.scenario.duration:
             self.running = False
+        self.context["step_ms"] = (time.perf_counter() - started) * 1000
+
+    def acknowledge_surface(self, session_id, vessel_id):
+        with self.lock:
+            surface = self.api.snapshot(session_id).get("surface") or {}
+            self.api.command(
+                f"/v1/sessions/{session_id}/surface/{vessel_id}/ack",
+                expected_revision=surface.get("revision", 0),
+            )
 
     def bind(self, track_id, mission_id):
         with self.lock:
@@ -458,10 +540,6 @@ class DemoController:
             result = self.api.command(
                 "/v1/demo/faults", fault="AI_UNAVAILABLE", enabled=enabled, duration_seconds=300
             )
-            target = session_id or self.session_id
-            if target:
-                for track in self.api.snapshot(target)["tracks"]:
-                    self.enrich(target, track["track_id"])
             return result
 
     def enrich(self, session_id, track_id):
