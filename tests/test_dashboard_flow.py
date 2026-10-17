@@ -17,6 +17,7 @@ from harbor_simulation.integration import DemoController, EngineAPI
 
 streamlit = pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest  # noqa: E402
+from streamlit.proto.TextInput_pb2 import TextInput  # noqa: E402
 
 
 @pytest.fixture(params=["off", "fake", "groq"])
@@ -221,7 +222,7 @@ def test_dashboard_start_assessment_acknowledgment_fault_and_stop(engine_process
             app.text_input(key="groq_key_input").set_value("gsk_visitor_key_for_ui_test_only")
             next(button for button in app.button if button.label == "Use my key").click().run()
             assert not app.exception and not personal_calls
-            assert app.text_input(key="groq_key_input").proto.type == "password"
+            assert app.text_input(key="groq_key_input").proto.type == TextInput.PASSWORD
             navigate("Contacts")
             app.button(key="personal_enrich_unknown_01").click().run()
             assert not app.exception
