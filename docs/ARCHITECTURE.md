@@ -8,7 +8,7 @@ Three observation streams share storage and presentation while retaining distinc
 
 ## 2. Runtime topology and consistency
 
-The local launcher starts one FastAPI/Uvicorn engine and one Streamlit server. Docker exposes Streamlit on `0.0.0.0:7860`; the engine listens on `127.0.0.1:8000` inside the container. Three randomly generated tokens distinguish sensor, operator and viewer requests between processes. One Uvicorn worker owns the SQLite database.
+The local launcher starts one FastAPI/Uvicorn engine and one Streamlit server. The Gradio Space entry point (`app.py`) exposes Streamlit on `0.0.0.0:7860`; the engine listens on `127.0.0.1:8000` on the loopback interface and is never publicly reachable. Three randomly generated tokens distinguish sensor, operator and viewer requests between processes. One Uvicorn worker owns the SQLite database.
 
 ```mermaid
 sequenceDiagram

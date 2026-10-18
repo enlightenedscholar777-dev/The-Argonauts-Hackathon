@@ -1,4 +1,4 @@
-# Runtime and wheel-building dependencies for Python 3.13 Docker Spaces.
+# Runtime and wheel-building dependencies for Python 3.13 Gradio Spaces.
 aiosqlite==0.22.1
 altair==6.3.0
 annotated-doc==0.0.5
