@@ -36,6 +36,16 @@ Open **http://127.0.0.1:8501**. The launcher starts the decision engine on port 
 
 The public Spaces launcher always uses `--ai off`.
 
+## Render
+
+The repository includes [`render.yaml`](../render.yaml) for a CPU-only Render web
+service. In Render, choose **New → Blueprint**, connect this repository, and
+apply the Blueprint. It installs `requirements-space.txt`, starts `python app.py`,
+and uses Render's `PORT` environment variable for the Streamlit dashboard.
+
+The service is configured for the free plan, which may sleep after inactivity.
+`GROQ_API_KEY` is optional and is not needed for the public CPU demo.
+
 ## Hugging Face Spaces (Gradio SDK)
 
 The app runs on a **Gradio** Space — no Docker subscription required. The Space uses `app.py` at the repository root as its entry point, which starts the FastAPI engine on loopback and Streamlit on port 7860.
@@ -45,7 +55,8 @@ The app runs on a **Gradio** Space — no Docker subscription required. The Spac
 1. Go to [huggingface.co/new-space](https://huggingface.co/new-space).
 2. Choose **Gradio** as the Space SDK.
 3. Set the Space to **Public** (or **Private** for a restricted demo).
-4. The Space ID will be `<your-username>/harbor-maester`.
+4. Under **Settings → Hardware**, choose **CPU basic**. This application is CPU-first and does not define a `@spaces.GPU` function; ZeroGPU/GPU hardware will stop a Gradio Space that has no GPU-decorated function.
+5. The Space ID will be `<your-username>/harbor-maester`.
 
 > [!IMPORTANT]
 > Do **not** set `GROQ_API_KEY` as a Space secret. The public launcher clears any inherited key and forces the AI provider off. Visitors supply their own key in the Streamlit sidebar.
@@ -66,7 +77,7 @@ python -m scripts.prepare_space --output runtime/space-upload
 huggingface-cli upload <your-username>/harbor-maester runtime/space-upload . --repo-type space
 ```
 
-The upload bundle contains only allowlisted source files (see `scripts/prepare_space.py`). It includes `app.py` (the Gradio Space entry point), source code, config and data. It excludes local credentials, SQLite databases, training environments, test fixtures and ground-truth labels.
+The upload bundle contains only allowlisted source files (see `scripts/prepare_space.py`). It includes `app.py` (the Gradio Space entry point), source code, config, data and a generated `requirements.txt` containing Python 3.10-compatible Space dependencies. Hugging Face Spaces installs `requirements.txt` automatically. The bundle excludes local credentials, SQLite databases, training environments, test fixtures and ground-truth labels.
 
 ### Automated deployment via GitHub Actions
 

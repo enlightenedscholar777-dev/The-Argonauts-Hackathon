@@ -36,7 +36,9 @@ def space_environment(source=None):
         DEMO_FAULTS_ENABLED="true",
         WEB_CONCURRENCY="1",
         PYTHONUNBUFFERED="1",
-        PYTHONPATH=str(ROOT) + os.pathsep + environment.get("PYTHONPATH", ""),
+        PYTHONPATH=os.pathsep.join(
+            (str(ROOT / "src"), str(ROOT), environment.get("PYTHONPATH", ""))
+        ),
     )
     for role in ("SENSOR", "OPERATOR", "VIEWER"):
         environment[f"ENGINE_{role}_TOKEN"] = secrets.token_urlsafe(32)
@@ -65,6 +67,7 @@ def main():
     Path("runtime").mkdir(exist_ok=True)
 
     environment = space_environment()
+    dashboard_port = environment.get("PORT", "7860")
     children = []
 
     def stop(_signum, _frame):
@@ -84,12 +87,12 @@ def main():
             "Dashboard",
             [sys.executable, "-m", "streamlit", "run", "harbor_simulation/app.py",
              "--server.address", "0.0.0.0",
-             "--server.port", "7860",
+             "--server.port", dashboard_port,
              "--server.headless", "true",
              "--server.fileWatcherType", "none",
              "--browser.gatherUsageStats", "false",
              "--theme.base", "dark"],
-            "http://127.0.0.1:7860/_stcore/health",
+            f"http://127.0.0.1:{dashboard_port}/_stcore/health",
         ),
     ]
 
@@ -99,7 +102,10 @@ def main():
             children.append(process)
             wait_ready(process, health_url, label)
 
-        print("Harbor-maester is ready on port 7860. Visitor-provided keys only.", flush=True)
+        print(
+            f"Harbor-maester is ready on port {dashboard_port}. Visitor-provided keys only.",
+            flush=True,
+        )
 
         # Keep alive — restart policy is handled by the Space runtime.
         while all(child.poll() is None for child in children):
