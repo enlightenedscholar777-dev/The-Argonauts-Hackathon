@@ -1,19 +1,28 @@
----
-title: Harbor-maester
-emoji: ⚓
-colorFrom: blue
-colorTo: indigo
-sdk: gradio
-sdk_version: 5.49.1
-python_version: "3.10"
-suggested_hardware: cpu-basic
-app_file: app.py
-pinned: false
----
+<div align="center">
 
 # Harbor-maester
 
-**Evidence-aware decision support for harbor watch operations**
+### Evidence-aware decision support for harbor operations
+
+**Observe movement. Anticipate change. Explain the next decision.**
+
+[![Live demo](https://img.shields.io/badge/OPEN_LIVE_DEMO-Render-18B8A6?style=for-the-badge&labelColor=102536)](https://harbor-maester.onrender.com/)
+[![Product page](https://img.shields.io/badge/EXPLORE_THE_RESEARCH-Product_Page-538BDA?style=for-the-badge&labelColor=102536)](https://enlightenedscholar777-dev.github.io/The-Argonauts-Hackathon/)
+[![Architecture](https://img.shields.io/badge/READ_THE_ARCHITECTURE-Technical_Docs-9B8CE0?style=for-the-badge&labelColor=102536)](docs/ARCHITECTURE.md)
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![Groq](https://img.shields.io/badge/Groq-F55036?style=flat-square)
+![Render](https://img.shields.io/badge/Render-102536?style=flat-square&logo=render&logoColor=white)
+
+<img src="docs/assets/decision-flow.gif" alt="Conceptual pipeline: observe, track, forecast, assess and review. Animated markers illustrate data flow, not live telemetry." width="100%">
+
+<sub>Conceptual pipeline animation. CPU assessments, synthetic exercises, human review.</sub>
+
+</div>
 
 Harbor-maester is a CPU-first decision-support research prototype that converts timestamped harbor observations — sonar contacts, cooperative telemetry, scheduled surface-vessel traffic and small-object position reports — into inspectable, advisory assessments for a human operator. It tracks motion with a Kalman filter, forecasts zone entry with Monte Carlo trajectories, enforces permission and freshness policies, classifies small-object behavior with a local random forest, and presents everything through a live Streamlit operator console with full audit persistence.
 
@@ -29,7 +38,8 @@ Built by **The Argonauts** for the *Preparing for Disaster* hackathon.
 - [Operator workspace](#operator-workspace)
 - [Optional AI explanations](#optional-ai-explanations)
 - [Evaluation results](#evaluation-results)
-- [Deploy to Hugging Face Spaces](#deploy-to-hugging-face-spaces)
+- [Render deployment](#render-deployment)
+- [Technical tags](#technical-tags)
 - [Repository structure](#repository-structure)
 - [Documentation](#documentation)
 - [Security and privacy](#security-and-privacy)
@@ -46,7 +56,7 @@ The system is organized in three layers: data collection, hybrid decision engine
   <img src="docs/architectures/decision_engine.png" alt="Decision engine architecture" width="720"/>
 </p>
 
-**Data collection** — Sonar bearing and range observations are converted to a local metric frame. Cooperative telemetry provides heartbeat confirmation. Surface vessels follow scheduled geographic waterway routes. Small-object positions arrive as a separate stream. All inputs are validated, timestamped, deduplicated and stored before any assessment begins.
+**Data collection** — Sonar bearing and range observations are converted to a local metric frame. Cooperative telemetry provides heartbeat confirmation. Surface vessels follow scheduled geographic waterway routes. Small-object positions arrive as a separate stream. Inputs are validated, timestamped and deduplicated; assessments and audit records are committed before publication.
 
 **Hybrid decision engine** — A single-writer coordinator owns the state machine. Observations update a constant-velocity Kalman filter; forecasts project 32 Monte Carlo trajectories through policy zones; a rule-based policy layer evaluates permissions, freshness, route deviation and risk. An optional LLM (Groq) provides structured explanations but cannot change risk scores, permissions or recommended actions.
 
@@ -159,28 +169,38 @@ Your key is held only in server session memory for that browser session — it i
 
 ---
 
-## Deploy to Hugging Face Spaces
+## Render deployment
 
-The app deploys as a **Gradio** Space (free tier, no Docker subscription required).
+**Live application:** [harbor-maester.onrender.com](https://harbor-maester.onrender.com/)
 
-1. Create a [new Space](https://huggingface.co/new-space) with **Gradio** SDK
-2. Build the upload bundle and push:
+**Product and research website:** [Harbor-maester research brief](https://enlightenedscholar777-dev.github.io/The-Argonauts-Hackathon/)
+
+The Render service is defined in [`render.yaml`](render.yaml). Its launch command is:
 
 ```bash
-pip install 'huggingface_hub>=1,<2'
-huggingface-cli login
-python -m scripts.prepare_space --output runtime/space-upload
-huggingface-cli upload <your-username>/harbor-maester runtime/space-upload . --repo-type space
+python app.py
 ```
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full instructions including GitHub Actions automation.
+The root `app.py` starts the decision API on internal loopback port `8000` and exposes Streamlit on Render's `PORT`, defaulting to `7860` locally. The operator dashboard lives in `harbor_simulation/app.py`.
+
+| Render setting | Value |
+|---|---|
+| Runtime | Python |
+| Build command | `pip install -r requirements-space.txt` |
+| Start command | `python app.py` |
+| Health check | `/_stcore/health` |
+| Public AI credentials | Visitor-provided key through the dashboard |
+
+The existing Render start command remains `python app.py`. The launcher reads `PORT` automatically and keeps engine credentials internal.
+
+The public demo runs one shared synthetic exercise. Scenario controls affect all viewers; Groq keys and private explanations are scoped to each browser session. Core tracking, forecasts and recommendations work without an API key. See the [deployment guide](docs/DEPLOYMENT.md) for setup and service checks.
 
 ---
 
 ## Repository structure
 
 ```
-├── app.py                        # Hugging Face Gradio Space entry point
+├── render.yaml                   # Render service configuration
 ├── pyproject.toml                # Package metadata and dependencies
 ├── requirements-space-lock.txt   # Pinned runtime dependencies
 │
@@ -223,7 +243,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full instructions including Git
 | [Model and data card](docs/MODEL_CARD.md) | Random-forest training procedure, feature definitions, evaluation metrics and limitations |
 | [Motion detection](docs/MOTION_DETECTION.md) | Small-object observation stream, classification pipeline, harbor-area selection and abstention criteria |
 | [Security boundaries](docs/SECURITY.md) | Visitor key isolation, shared-state model, credential scanning and storage lifecycle |
-| [Deployment guide](docs/DEPLOYMENT.md) | Local development, Hugging Face Spaces (Gradio SDK) and GitHub Actions |
+| [Deployment guide](docs/DEPLOYMENT.md) | Local development, Render configuration and GitHub Pages |
 | [Capability audit](docs/CAPABILITY_AUDIT.md) | Crisis-mitigation criteria, implemented algorithms vs. claims, measured evaluation and remaining work |
 
 ---
@@ -231,7 +251,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full instructions including Git
 ## Security and privacy
 
 - **Visitor keys** are held in server session memory only — never disk, database, logs or the repository
-- **Engine AI provider** is forced `off` on the public Space; no host key is ever set
+- **Engine AI provider** is forced `off` on the public deployment; no host key is ever set
 - **Credential scanning** runs as a pre-release check across all source files
 - **Session isolation** — AI explanations are per-browser-session; simulation state is shared
 - **Upload bundles** are built from an explicit allowlist; `.env`, SQLite, test fixtures and ground-truth data are excluded
@@ -242,15 +262,58 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full instructions including Git
 
 This is a research prototype, not a production vessel traffic service.
 
-- All sensor data, geography, routes and policy are synthetic
+- Sensor observations are synthetic; routes and policy zones are illustrative within real Long Beach geographic context
 - Acknowledgment is audited human review, not dispatch, vessel control or navigation clearance
 - The 96.5% motion accuracy is on synthetic trajectories; real-world performance is unmeasured
 - No raw sensor detection, identity recognition, material classification or species identification
 - Surface thresholds are demonstration values, not COLREGs or certified navigation criteria
 - Single shared exercise per deployment; no multi-tenant isolation or production RBAC
-- Container storage is ephemeral; history may be lost on Space restart
+- Container storage is ephemeral; history may be lost on service restart
 
 See [docs/CAPABILITY_AUDIT.md](docs/CAPABILITY_AUDIT.md) for a detailed assessment of what is and is not implemented.
+
+---
+
+## Technical tags
+
+Methods and engineering concepts implemented in the prototype. These labels describe the software; they do not imply operational certification.
+
+**Estimation and forecasting**
+
+![Probabilistic-State-Estimation](https://img.shields.io/badge/Probabilistic--State--Estimation-3D83C6?style=flat-square)
+![Kalman-Filtering](https://img.shields.io/badge/Kalman--Filtering-3D83C6?style=flat-square)
+![Mahalanobis-Innovation-Gating](https://img.shields.io/badge/Mahalanobis--Innovation--Gating-3D83C6?style=flat-square)
+![Monte-Carlo-Trajectory-Forecasting](https://img.shields.io/badge/Monte--Carlo--Trajectory--Forecasting-3D83C6?style=flat-square)
+![Spatiotemporal-Risk-Assessment](https://img.shields.io/badge/Spatiotemporal--Risk--Assessment-3D83C6?style=flat-square)
+![Closest-Point-of-Approach-Analysis](https://img.shields.io/badge/Closest--Point--of--Approach--Analysis-3D83C6?style=flat-square)
+
+**Motion modeling and simulation**
+
+![Temporal-Motion-Feature-Extraction](https://img.shields.io/badge/Temporal--Motion--Feature--Extraction-178F87?style=flat-square)
+![Random-Forest-Ensemble-Classification](https://img.shields.io/badge/Random--Forest--Ensemble--Classification-178F87?style=flat-square)
+![Uncertainty-Aware-Classification](https://img.shields.io/badge/Uncertainty--Aware--Classification-178F87?style=flat-square)
+![Synthetic-Trajectory-Modeling](https://img.shields.io/badge/Synthetic--Trajectory--Modeling-178F87?style=flat-square)
+![Maritime-Traffic-Simulation](https://img.shields.io/badge/Maritime--Traffic--Simulation-178F87?style=flat-square)
+![Vessel-Route-Deviation-Detection](https://img.shields.io/badge/Vessel--Route--Deviation--Detection-178F87?style=flat-square)
+
+**Decision support and explanations**
+
+![Geospatial-Policy-Enforcement](https://img.shields.io/badge/Geospatial--Policy--Enforcement-7961B9?style=flat-square)
+![Policy-Driven-Decision-Support](https://img.shields.io/badge/Policy--Driven--Decision--Support-7961B9?style=flat-square)
+![Human-in-the-Loop-Incident-Review](https://img.shields.io/badge/Human--in--the--Loop--Incident--Review-7961B9?style=flat-square)
+![Evidence-Grounded-AI-Explanations](https://img.shields.io/badge/Evidence--Grounded--AI--Explanations-7961B9?style=flat-square)
+![BM25-Procedure-Retrieval](https://img.shields.io/badge/BM25--Procedure--Retrieval-7961B9?style=flat-square)
+![Schema-Constrained-LLM-Output](https://img.shields.io/badge/Schema--Constrained--LLM--Output-7961B9?style=flat-square)
+
+**Runtime and reliability**
+
+![Event-Driven-Assessment-Pipeline](https://img.shields.io/badge/Event--Driven--Assessment--Pipeline-536D85?style=flat-square)
+![Idempotent-Observation-Ingestion](https://img.shields.io/badge/Idempotent--Observation--Ingestion-536D85?style=flat-square)
+![Transactional-Audit-Logging](https://img.shields.io/badge/Transactional--Audit--Logging-536D85?style=flat-square)
+![Sensor-Freshness-Monitoring](https://img.shields.io/badge/Sensor--Freshness--Monitoring-536D85?style=flat-square)
+![Graceful-AI-Service-Degradation](https://img.shields.io/badge/Graceful--AI--Service--Degradation-536D85?style=flat-square)
+![CPU-Based-Model-Inference](https://img.shields.io/badge/CPU--Based--Model--Inference-536D85?style=flat-square)
+![Render-Application-Deployment](https://img.shields.io/badge/Render--Application--Deployment-536D85?style=flat-square)
 
 ---
 
