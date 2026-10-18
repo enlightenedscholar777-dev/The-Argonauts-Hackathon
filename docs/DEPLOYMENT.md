@@ -1,10 +1,10 @@
 # Deployment guide
 
-This document covers local development, Docker container use, and Hugging Face Spaces deployment. See [SECURITY.md](SECURITY.md) for credential and hosting boundaries.
+This document covers local development and Hugging Face Spaces deployment (Gradio SDK). See [SECURITY.md](SECURITY.md) for credential and hosting boundaries.
 
 ## Local development
 
-Use Python **3.13** to match the release container. From the repository root:
+Use Python **3.13** to match the release environment. From the repository root:
 
 ```powershell
 # Windows PowerShell
@@ -36,24 +36,15 @@ Open **http://127.0.0.1:8501**. The launcher starts the decision engine on port 
 
 The public Spaces launcher always uses `--ai off`.
 
-## Docker (local and CI)
+## Hugging Face Spaces (Gradio SDK)
 
-```sh
-docker build -t harbor-maester .
-docker run --rm --name harbor-maester -p 127.0.0.1:7860:7860 harbor-maester
-```
-
-Open **http://localhost:7860**. The container exposes only port 7860 (Streamlit). The decision engine binds to container loopback 8000 and is not reachable from the host. No Groq credentials are required; the container launches with `AI_PROVIDER=off`.
-
-The build uses `.dockerignore` as an allowlist (`**` denies everything; individual `!path` lines allow only what is needed). Local `runtime/`, `.env*`, `*.sqlite3`, test files and training artifacts are excluded.
-
-## Hugging Face Spaces (Docker SDK)
+The app runs on a **Gradio** Space — no Docker subscription required. The Space uses `app.py` at the repository root as its entry point, which starts the FastAPI engine on loopback and Streamlit on port 7860.
 
 ### One-time Space setup
 
 1. Go to [huggingface.co/new-space](https://huggingface.co/new-space).
-2. Choose **Docker** as the Space SDK.
-3. Set the Space to **Public** (or Private for a restricted demo).
+2. Choose **Gradio** as the Space SDK.
+3. Set the Space to **Public** (or **Private** for a restricted demo).
 4. The Space ID will be `<your-username>/harbor-maester`.
 
 > [!IMPORTANT]
@@ -75,7 +66,7 @@ python -m scripts.prepare_space --output runtime/space-upload
 huggingface-cli upload <your-username>/harbor-maester runtime/space-upload . --repo-type space
 ```
 
-The upload bundle contains only allowlisted source files (see `scripts/prepare_space.py`). It excludes local credentials, SQLite databases, training environments, test fixtures and ground-truth labels.
+The upload bundle contains only allowlisted source files (see `scripts/prepare_space.py`). It includes `app.py` (the Gradio Space entry point), source code, config and data. It excludes local credentials, SQLite databases, training environments, test fixtures and ground-truth labels.
 
 ### Automated deployment via GitHub Actions
 
@@ -83,14 +74,14 @@ The repository includes `.github/workflows/space.yml`. To trigger it:
 
 1. Add `HF_TOKEN` as a GitHub Actions secret in your repository settings  
    (**Settings → Secrets and variables → Actions → New repository secret**).
-2. Go to **Actions → Deploy Hugging Face Space → Run workflow**.
+2. Go to **Actions → Deploy Hugging Face Space (Gradio) → Run workflow**.
 3. Enter your Space ID in the format `username/harbor-maester`.
 
 The workflow runs the release check, builds the upload bundle, and calls `huggingface-cli upload` using the stored token.
 
 ### Environment variables inside the Space
 
-The container sets all required variables at startup via `scripts/launch_space.py`:
+`app.py` sets all required variables at startup:
 
 | Variable | Value | Purpose |
 |---|---|---|
@@ -101,7 +92,7 @@ The container sets all required variables at startup via `scripts/launch_space.p
 | `DATABASE_PATH` | `runtime/space.sqlite3` | Local container storage (ephemeral) |
 | `ENGINE_*_TOKEN` | Random per boot | Internal service tokens; never set by users |
 
-Do not set `ENGINE_*_TOKEN` manually — they are regenerated on every container start.
+Do not set `ENGINE_*_TOKEN` manually — they are regenerated on every restart.
 
 ## Release hygiene
 
@@ -109,12 +100,17 @@ Before merging to `main`, run:
 
 ```sh
 python -m scripts.release_check
-python -m pytest tests simulator/tests -q
 python project-website/check_site.py
 node --check project-website/app.js
 ```
 
-These are also run by the CI workflow on every push and pull request against `main`.
+To run the full test suite locally (not run on CI automatically):
+
+```sh
+python -m pytest tests simulator/tests -q
+```
+
+These checks (excluding tests) are also run by the CI workflow on every push and pull request against `main`.
 
 ## GitHub Pages (static website)
 

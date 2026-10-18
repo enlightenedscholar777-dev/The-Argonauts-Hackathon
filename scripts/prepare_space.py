@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ("README.md", "Dockerfile", ".dockerignore", "pyproject.toml", "requirements-space-lock.txt",
+FILES = ("README.md", "app.py", "pyproject.toml", "requirements-space-lock.txt",
          "data/procedures.json")
 TREES = {
     "src": {".py", ".json", ".html", ".css", ".js"},
@@ -13,7 +13,6 @@ TREES = {
     "harbor_simulation": {".py", ".csv"},
     "simulator": {".py"},
     "scripts": {".py"},
-    "docs": {".md", ".json"},
 }
 
 

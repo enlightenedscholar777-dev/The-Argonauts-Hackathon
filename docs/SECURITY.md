@@ -12,11 +12,11 @@ Only selected synthetic evidence and retrieved demo procedures are sent on an ex
 
 The Space is one shared synthetic exercise. Visitors can start scenarios, pause playback and acknowledge demo reviews for all viewers. Private keys do not imply private simulations. Do not ingest operational data or offer this deployment as an authenticated emergency-response service.
 
-The public port is Streamlit 7860. The API binds to container loopback on 8000 and uses independently generated sensor/operator/viewer tokens. These are service credentials, not public-user authentication. Streamlit's default XSRF/CORS protections remain enabled. Do not publish engine port 8000 in Docker or add credentials to URL query strings.
+The public port is Streamlit 7860. The API binds to loopback on 8000 and uses independently generated sensor/operator/viewer tokens. These are service credentials, not public-user authentication. Streamlit's default XSRF/CORS protections remain enabled. Do not expose engine port 8000 publicly or add credentials to URL query strings.
 
 ## Repository and image hygiene
 
-`.gitignore` excludes `.env`, alternate local env files, virtual environments, runtime state, SQLite files and Streamlit secrets. `.dockerignore` is an allowlist and Docker copies specific runtime paths. `scripts.prepare_space` makes a separate allowlisted upload folder and refuses to overwrite an existing one. Upload that folder, not the working directory.
+`.gitignore` excludes `.env`, alternate local env files, virtual environments, runtime state, SQLite files and Streamlit secrets. `scripts.prepare_space` makes a separate allowlisted upload folder and refuses to overwrite an existing one. Upload that folder, not the working directory.
 
 The release-check script scans selected source files for credential patterns and reports filenames without printing matched values. Automated scans reduce accidental publication risk; they cannot prove an arbitrary historic repository contains no secret. If a real secret was ever pushed, revoke it and handle repository history separately. This release process does not rewrite history.
 
@@ -28,4 +28,4 @@ The engine and motion model continue when Groq is absent, unavailable or rate li
 
 ## Storage lifecycle
 
-SQLite history is local to the running container. Hugging Face container storage is ephemeral unless external persistence is configured. Restart/rebuild can lose exercises. No persistent storage is required for this demonstration; public visitor keys must not be added to persistence.
+SQLite history is local to the running Space instance. Hugging Face Space storage is ephemeral unless external persistence is configured. Restart/rebuild can lose exercises. No persistent storage is required for this demonstration; public visitor keys must not be added to persistence.
