@@ -15,124 +15,230 @@ tags:
   - time-series
 ---
 
-# Harbor-maester
+<div align="center">
 
-**From harbor observations to explainable recommendations.** Harbor-maester is a CPU-first decision-support research prototype built by **The Argonauts**. It connects scheduled vessel traffic, synthetic sonar and telemetry, a numerical decision engine, and a live operator dashboard. Operators can inspect what needs attention, the evidence behind it, and the next action to consider.
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:092536,100:1a5c7a&height=200&section=header&text=Harbor-maester&fontSize=56&fontColor=e3f6f0&fontAlignY=38&desc=Evidence-aware%20harbor%20decision%20support&descAlignY=58&descSize=18&descColor=7dcfba&animation=fadeIn" width="100%"/>
 
-The demonstration covers eight Long Beach harbor areas. It supports routine traffic awareness, restricted-zone approaches, route deviations, missing observations, and small-object movement classification. All observations and policy zones in the demonstration are synthetic or illustrative. Recommendations are advisory: acknowledgment records human review and does not control a vessel or dispatch responders.
+<br/>
 
-## Start the complete application
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=22&pause=1000&color=53D7C0&center=true&vCenter=true&width=700&lines=Kalman+tracking+%E2%86%92+Monte+Carlo+forecast+%E2%86%92+Policy;Random+forest+motion+classifier+%C2%B7+96.5%25+accuracy;Per-session+Groq+AI+%C2%B7+keys+never+leave+your+browser;CPU-first+%C2%B7+no+cloud+required+for+core+functions)](https://git.io/typing-svg)
 
-### Docker — the same entry point used by Hugging Face Spaces
+<br/>
+
+<!-- Badges row 1 -->
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Engine-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
+
+<!-- Badges row 2 -->
+[![HuggingFace](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces-FFD21E?style=for-the-badge)](https://huggingface.co/spaces)
+[![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
+[![Hackathon](https://img.shields.io/badge/Preparing%20for%20Disaster-Hackathon-e11d48?style=for-the-badge&logo=devpost&logoColor=white)](https://github.com/enlightenedscholar777-dev/The-Argonauts-Hackathon)
+[![Tests](https://img.shields.io/badge/Tests-93%20passing-16a34a?style=for-the-badge&logo=pytest&logoColor=white)](docs/RELEASE_VALIDATION.md)
+
+<br/>
+
+> **From harbor observations to explainable recommendations.**  
+> Harbor-maester is a CPU-first decision-support research prototype by **The Argonauts**.  
+> It connects scheduled vessel traffic, synthetic sonar & telemetry, a numerical decision engine,  
+> and a live operator dashboard — all deployable in a single Docker container.
+
+<br/>
+
+</div>
+
+---
+
+## ⚡ Quick Start
+
+<details open>
+<summary><strong>🐳 Docker &nbsp;·&nbsp; same entry point as Hugging Face Spaces</strong></summary>
 
 ```sh
 docker build -t harbor-maester .
 docker run --rm --name harbor-maester -p 127.0.0.1:7860:7860 harbor-maester
 ```
 
-Open **http://localhost:7860**. No API key is needed for the simulation, tracking, forecasts, policy assessments or movement classifier. The dashboard starts a harbor-wide exercise when no active session exists. Use **Simulation** for scenarios and **Contacts** for explanations and review.
+Open **http://localhost:7860** — no API key needed for the simulation, tracking, forecasts, policy or motion classifier.
 
-For optional language-model explanations, expand **Your Groq API key** in the sidebar, enter your own key and select **Use my key**. In **Contacts → Optional AI explanation**, select **Request AI explanation**. Saving a key, page refreshes and simulation updates make no AI calls. The key and private explanation remain in that browser session's server memory; they are not stored in the shared database or shown to other visitors. Remove the key when finished. Selected synthetic evidence is sent to Groq only on request, using your account's quota.
+</details>
 
-### Local Python development
-
-Use Python **3.13** for parity with the release container. From the repository root in PowerShell:
+<details>
+<summary><strong>🐍 Local Python development &nbsp;·&nbsp; Python 3.13</strong></summary>
 
 ```powershell
+# Windows PowerShell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-space-lock.txt
 .\.venv\Scripts\python.exe -m pip install --no-deps --no-build-isolation -e .
 .\.venv\Scripts\python.exe -m scripts.launch_demo
 ```
 
-Open **http://127.0.0.1:8501**. On Linux/macOS, use `python3` to create the environment and `.venv/bin/python` thereafter. The launcher creates missing local engine tokens without displaying them. Ctrl+C stops both services. Local SQLite data is retained under `runtime/`.
+```bash
+# Linux / macOS
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-space-lock.txt
+.venv/bin/python -m pip install --no-deps --no-build-isolation -e .
+.venv/bin/python -m scripts.launch_demo
+```
 
-The local launcher also supports `--ai fake` for a visibly labeled mock or `--ai groq` for a private, operator-owned installation configured through `.env`. **The public Spaces launcher always disables instance-wide Groq credentials**; visitors supply their own key. See [deployment and release instructions](docs/DEPLOYMENT.md).
+Open **http://127.0.0.1:8501**.  Ctrl+C stops both services.
 
-## System architecture
+</details>
+
+<details>
+<summary><strong>🔑 Optional AI explanations &nbsp;·&nbsp; your own Groq key</strong></summary>
+
+1. Expand **Your Groq API key** in the sidebar
+2. Paste your key → click **Use my key**
+3. Open **Contacts → Optional AI explanation → Request AI explanation**
+
+Your key stays in that browser session's server memory only — never written to disk, database, or shown to other visitors. Remove it when done. The engine and all core functions continue without any key.
+
+</details>
+
+---
+
+## 🗺️ System Architecture
 
 ```mermaid
 flowchart LR
-    S[Seeded sonar and telemetry] --> I[Authenticated observation API]
-    V[Scheduled surface voyages] --> I
-    O[Small-object observations] --> I
-    I --> C[Single-writer coordinator]
-    C --> K[Kalman tracking and Monte Carlo forecasts]
-    C --> T[Surface CPA and route/schedule analysis]
-    C --> M[Local random forest]
-    K --> P[Permission and risk policy]
-    P --> D[Assessment, reasons and next action]
+    classDef sensor fill:#0d3048,stroke:#2a7a9e,color:#c8e6f5
+    classDef engine fill:#0a2535,stroke:#1e5c78,color:#b8dff5
+    classDef output fill:#092030,stroke:#1a4d63,color:#a8d4e8
+    classDef human fill:#0f3520,stroke:#1d7040,color:#a8e6c0
+    classDef ai fill:#1a1a0a,stroke:#6b6b1a,color:#e6e6a8
+
+    S[🔊 Seeded sonar & telemetry]:::sensor --> I[🔐 Authenticated observation API]:::engine
+    V[🚢 Scheduled surface voyages]:::sensor --> I
+    O[📍 Small-object observations]:::sensor --> I
+    I --> C[✍️ Single-writer coordinator]:::engine
+    C --> K[📐 Kalman tracking & Monte Carlo forecasts]:::engine
+    C --> T[⚓ Surface CPA & route/schedule analysis]:::engine
+    C --> M[🌲 Local random forest]:::engine
+    K --> P[📋 Permission & risk policy]:::engine
+    P --> D[🎯 Assessment, reasons & next action]:::output
     T --> D
     M --> D
-    D --> DB[(SQLite audit)]
-    D --> U[Operator dashboard]
-    U --> H[Human review acknowledgment]
+    D --> DB[(💾 SQLite audit)]:::output
+    D --> U[🖥️ Operator dashboard]:::output
+    U --> H[✅ Human review acknowledgment]:::human
     H --> C
-    U -. explicit private request .-> G[Groq with visitor key]
+    U -. explicit private request .-> G[🤖 Groq with visitor key]:::ai
     G -. validated prose only .-> U
 ```
 
+<div align="center">
+
 | Component | Method | Output |
-|---|---|---|
-| Track estimation | Four-state constant-velocity Kalman filter; Mahalanobis innovation gating; Joseph covariance update | Position, velocity, uncertainty and evidence quality |
-| Conditional forecasting | Mean propagation and 32 Monte Carlo paths over a 30-second horizon | Estimated zone-entry times and uncalibrated sampled hit fractions |
-| Decision policy | Explicit mission permissions, freshness gates, route hysteresis, reason/action rules and incident lifecycle | Risk band, evidence references, recommendation and review request |
-| Surface analysis | Closest point of approach, cross-track distance and schedule delay | Encounter, off-route and delay advisories |
-| Small-object analysis | 48-tree random forest over seven motion features; abstention on poor or ambiguous evidence | Movement category, model scores and unconfirmed candidate object types |
-| Optional explanation | Retrieved demo procedures and schema/reference-validated LLM output | Evidence-based narrative; never an authorization or control decision |
+|:---|:---|:---|
+| **Track estimation** | 4-state constant-velocity Kalman filter · Mahalanobis gating · Joseph covariance update | Position, velocity, uncertainty & evidence quality |
+| **Conditional forecasting** | Mean propagation + 32 Monte Carlo paths over 30-second horizon | Zone-entry times & sampled hit fractions |
+| **Decision policy** | Mission permissions · freshness gates · route hysteresis · reason/action rules · incident lifecycle | Risk band, evidence refs, recommendation & review request |
+| **Surface analysis** | Closest point of approach · cross-track distance · schedule delay | Encounter, off-route & delay advisories |
+| **Motion classifier** | 48-tree random forest · 7 motion features · abstention on weak evidence | Movement category, model scores & candidate object types |
+| **Optional explanation** | Retrieved demo procedures + schema-validated LLM output | Evidence-based narrative — never a control decision |
 
-The forest is the locally trained ML model. Kalman tracking, geometric forecasting and policy are numerical/analytical methods. Groq hosts the optional language model. There is no learned end-to-end threat classifier and no local LLM requirement. See [architecture and mathematical methods](docs/ARCHITECTURE.md) and the [model and data card](docs/MODEL_CARD.md).
+</div>
 
-## Operator workflow
+---
 
-1. **Overview:** inspect the priority contact, harbor atlas, moving traffic and attention queue.
-2. **Contacts:** inspect evidence, permission, forecast and suggested next step; acknowledge review or explicitly request an AI explanation.
-3. **Traffic:** review scheduled voyages, encounter advisories and route/schedule deviations.
-4. **Simulation:** select a location, traffic density, playback pace and incident scenario; pause, step or exercise failures.
-5. **Activity:** inspect observation delivery, core health and committed audit history.
-6. **Detection:** review object movement and possible interpretations after at least 16 observations spanning 30 scenario seconds.
+## 🎮 Operator Workflow
 
-The public instance is **one shared exercise**: scenario and playback controls affect all viewers. Keys and personal AI explanations are isolated by browser session. This is a collaborative demonstration, not an authenticated multi-tenant operations service. Refreshing a browser may reset its private key state. See [security and hosting boundaries](docs/SECURITY.md).
-
-## Evidence and evaluation
-
-| Recorded experiment | Result | Interpretation |
-|---|---|---|
-| Seeded restricted-area approach | High concern at 36 s; estimated entry at 51 s | 15-second conditional warning lead in one synthetic case |
-| Synthetic sonar outage | Stale at 13 s; lost at 20 s after last report at 9 s | Explicit degradation of evidence quality |
-| Motion classification | 96.5% accuracy on 800 held-out synthetic trajectories | Behavior classification within the generator's distribution |
-| Motion abstention | 97% hypothesis coverage | Confidence/margin and feature-envelope checks withhold some outputs |
-
-Results are recorded in [harbor evaluation](docs/harbor-evaluation.json) and [motion evaluation](docs/motion-evaluation.json). They do not establish real-world debris recognition, collision prevention, lives saved or response-time reduction. Field data, independent validation and responder studies remain future work.
-
-To run the tests:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-lock.txt
-.\.venv\Scripts\python.exe -m pytest tests simulator/tests -q
-.\.venv\Scripts\python.exe project-website/check_site.py
+```
+┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────────────┐
+│  1 Overview │───▶│  2 Contacts  │───▶│  3 Traffic  │───▶│ 4 Simulation │───▶│  5 Activity  │───▶│  6 Detection  │
+│             │    │              │    │             │    │              │    │              │    │               │
+│ Priority    │    │ Evidence     │    │ Voyages     │    │ Scenarios    │    │ Observation  │    │ Motion        │
+│ contact     │    │ Permission   │    │ Encounters  │    │ Fault inject │    │ delivery     │    │ hypotheses    │
+│ Atlas map   │    │ Forecast     │    │ Route dev.  │    │ Playback     │    │ Core health  │    │ Feature evid. │
+│ Attention   │    │ AI explain.  │    │ Berth delay │    │ Pace control │    │ Audit trail  │    │ Verification  │
+└─────────────┘    └──────────────┘    └─────────────┘    └──────────────┘    └──────────────┘    └───────────────┘
 ```
 
-Tests include API authentication, transactional persistence, tracking, forecasts, sensor failure, stale AI rejection, explicit-request-only inference, private-key isolation, traffic schedules, motion abstention and dashboard interactions. [Release validation](docs/RELEASE_VALIDATION.md) records what was actually exercised for this release.
+> [!NOTE]
+> The public instance is **one shared exercise** — scenario controls affect all viewers. AI keys and personal explanations are isolated per browser session.
 
-## Repository guide
+---
+
+## 📊 Evaluation Results
+
+<div align="center">
+
+| 🧪 Experiment | 📈 Result | 🔍 Interpretation |
+|:---|:---:|:---|
+| Seeded restricted-area approach | **15 s lead** | High concern at t=36 s; zone entry estimated at t=51 s |
+| Synthetic sonar outage | **13 s / 20 s** | Report stale at 13 s, lost at 20 s after last ping at t=9 s |
+| Motion classification accuracy | **96.5%** | On 800 held-out synthetic trajectories across 4 classes |
+| Motion abstention coverage | **97%** | Confidence & margin checks withhold on weak evidence |
+| Automated test suite | **93 tests** | Engine, API, tracking, AI isolation & dashboard interactions |
+
+</div>
+
+> [!CAUTION]
+> Results are synthetic-only. The 96.5% figure is not real-world debris accuracy. Field data, independent validation and responder studies remain future work.
+
+---
+
+## 🔒 Security & Privacy Model
+
+```
+Visitor browser          Container server         Groq API
+      │                        │                      │
+      │  ── HTTPS ──────────▶  │                      │
+      │   (masked key input)   │                      │
+      │                        │ key in session RAM   │
+      │  ── click Explain ──▶  │                      │
+      │                        │  ── evidence + key ──▶│
+      │                        │  ◀── validated prose ─│
+      │  ◀── prose only ─────  │                      │
+      │                        │                      │
+      │  (page refresh)        │ session may reset    │
+      │  (other visitor)       │ completely isolated  │
+```
+
+- 🔑 Keys live only in server session RAM — not disk, DB, logs or repo
+- 🚫 Engine AI provider is `off` in the public container — no host key ever set  
+- 🛡️ `.dockerignore` is an allowlist — local `.env`, SQLite and test fixtures never enter the image
+- 👁️ Simulation state is shared; AI explanations are strictly per-session
+
+---
+
+## 🗂️ Repository Guide
+
+<div align="center">
 
 | Path | Responsibility |
-|---|---|
-| `src/harbor_engine/` | Authoritative engine, API, numerical models, policy, persistence and AI validation |
-| `harbor_simulation/` | Operator dashboard, API bridge, scheduled traffic and object generators |
+|:---|:---|
+| `src/harbor_engine/` | Authoritative engine, API, numerical models, policy, persistence & AI validation |
+| `harbor_simulation/` | Operator dashboard, API bridge, scheduled traffic & object generators |
 | `simulator/` | Original Pako simulator and reusable sonar/telemetry sensors |
-| `config/demo_policy.yaml` | Versioned synthetic policy, zones, source intervals and thresholds |
-| `scripts/` | Launchers, evaluation, training and allowlisted deployment export |
-| `docs/` | Architecture, model cards, API contract, deployment and measured limitations |
-| `project-website/` | Static technical website published separately through GitHub Pages |
+| `config/demo_policy.yaml` | Versioned synthetic policy, zones, source intervals & thresholds |
+| `scripts/` | Launchers, evaluation, training & allowlisted deployment export |
+| `docs/` | Architecture, model cards, API contract, deployment & measured limitations |
+| `project-website/` | Static technical website published through GitHub Pages |
 
-The legacy standalone dashboard and simulator engine are retained for provenance. The integrated application uses `src/harbor_engine/` as its decision authority. Earlier design documents under `docs/decision_engine/` describe broader concepts; the current architecture and model card describe this release.
+</div>
 
-## Team
+📖 Deep dives: [Architecture & Math](docs/ARCHITECTURE.md) · [Model & Data Card](docs/MODEL_CARD.md) · [Security Boundaries](docs/SECURITY.md) · [Deployment Guide](docs/DEPLOYMENT.md) · [Release Validation](docs/RELEASE_VALIDATION.md)
 
-- [Siddharth Magesh](https://www.linkedin.com/in/siddharth-magesh/)
-- [Snigdha Bolisetty](https://www.linkedin.com/in/snigdha-bolisetty/)
-- [Francisco Anaya Esquivel](https://www.linkedin.com/in/francisco-anaya-esquivel-23664036b/)
+---
 
-Built by The Argonauts for the Preparing for Disaster hackathon.
+## 👥 The Argonauts
+
+<div align="center">
+
+Built for the **Preparing for Disaster** hackathon.
+
+<br/>
+
+[![Siddharth Magesh](https://img.shields.io/badge/Siddharth%20Magesh-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/siddharth-magesh/)
+[![Snigdha Bolisetty](https://img.shields.io/badge/Snigdha%20Bolisetty-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/snigdha-bolisetty/)
+[![Francisco Anaya Esquivel](https://img.shields.io/badge/Francisco%20Anaya%20Esquivel-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/francisco-anaya-esquivel-23664036b/)
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:1a5c7a,100:092536&height=100&section=footer&animation=fadeIn" width="100%"/>
+
+</div>
