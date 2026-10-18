@@ -26,7 +26,9 @@ def space_environment(source=None):
         DEMO_FAULTS_ENABLED="true",
         WEB_CONCURRENCY="1",
         PYTHONUNBUFFERED="1",
-        PYTHONPATH=str(ROOT) + os.pathsep + environment.get("PYTHONPATH", ""),
+        PYTHONPATH=os.pathsep.join(
+            (str(ROOT / "src"), str(ROOT), environment.get("PYTHONPATH", ""))
+        ),
     )
     for role in ("SENSOR", "OPERATOR", "VIEWER"):
         environment[f"ENGINE_{role}_TOKEN"] = secrets.token_urlsafe(32)

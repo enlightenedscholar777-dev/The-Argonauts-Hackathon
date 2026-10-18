@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ("README.md", "app.py", "pyproject.toml", "requirements-space-lock.txt",
+FILES = ("README.md", "app.py", "pyproject.toml", "requirements-space.txt",
          "data/procedures.json")
 TREES = {
     "src": {".py", ".json", ".html", ".css", ".js"},
@@ -35,6 +35,10 @@ def prepare(destination):
         target = destination / path.relative_to(ROOT)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, target)
+    shutil.copy2(
+        ROOT / "requirements-space.txt",
+        destination / "requirements.txt",
+    )
     return len(paths)
 
 

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: harbor-maester
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-space.txt
+    startCommand: python app.py
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: AI_PROVIDER
+        value: "off"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: HARBOR_PUBLIC_DEMO
+        value: "true"
+      - key: HARBOR_AUTOSTART
+        value: "true"
+      - key: DEMO_MODE
+        value: "true"
+      - key: DEMO_FAULTS_ENABLED
+        value: "true"

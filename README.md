@@ -1,3 +1,16 @@
+---
+title: Harbor-maester
+emoji: ⚓
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 5.49.1
+python_version: "3.10"
+suggested_hardware: cpu-basic
+app_file: app.py
+pinned: false
+---
+
 # Harbor-maester
 
 **Evidence-aware decision support for harbor watch operations**
